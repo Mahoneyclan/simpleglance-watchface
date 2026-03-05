@@ -38,18 +38,28 @@ class WatchFaceView extends WatchUi.WatchFace {
         drawComplications(dc);
     }
 
+    // Draw text with a 1px white outline — call before drawing the main text
+    private function drawOutlinedText(dc as Dc, x as Number, y as Number, font as FontType, text as String, justify as Number, textColor as ColorType) as Void {
+        var offsets = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        for (var i = 0; i < offsets.size(); i++) {
+            dc.drawText(x + offsets[i][0], y + offsets[i][1], font, text, justify);
+        }
+        dc.setColor(textColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x, y, font, text, justify);
+    }
+
     private function drawDate(dc as Dc) as Void {
         var now  = Gregorian.info(Time.now(), Time.FORMAT_SHORT);
         var days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
         var dateStr = Lang.format("$1$  $2$", [days[now.day_of_week - 1], now.day]);
 
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(
-            _centerX,
-            _centerY - 68,
-            Graphics.FONT_SMALL,
+        drawOutlinedText(
+            dc, _centerX, _centerY - 68,
+            Graphics.FONT_MEDIUM,
             dateStr,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER,
+            Graphics.COLOR_LT_GRAY
         );
     }
 
@@ -68,24 +78,23 @@ class WatchFaceView extends WatchUi.WatchFace {
             minutes.format("%02d")
         ]);
 
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(
-            _centerX,
-            _centerY,
+        // Large time with white outline
+        drawOutlinedText(
+            dc, _centerX, _centerY,
             Graphics.FONT_NUMBER_THAI_HOT,
             timeStr,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER,
+            Graphics.COLOR_WHITE
         );
 
-        // AM/PM indicator — small, top-right of time
+        // AM/PM indicator
         var amPmStr = isPm ? "PM" : "AM";
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(
-            _centerX + 70,
-            _centerY - 20,
-            Graphics.FONT_XTINY,
+        drawOutlinedText(
+            dc, _centerX + 70, _centerY - 20,
+            Graphics.FONT_TINY,
             amPmStr,
-            Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER
+            Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER,
+            Graphics.COLOR_LT_GRAY
         );
     }
 
@@ -104,26 +113,22 @@ class WatchFaceView extends WatchUi.WatchFace {
             }
         }
 
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(
-            _centerX - 50,
-            complicationsY,
-            Graphics.FONT_XTINY,
-            "STEPS",
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER
+        drawOutlinedText(
+            dc, _centerX - 50, complicationsY,
+            Graphics.FONT_TINY, "STEPS",
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER,
+            Graphics.COLOR_LT_GRAY
         );
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(
-            _centerX - 50,
-            complicationsY + 16,
-            Graphics.FONT_SMALL,
-            stepStr,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER
+        drawOutlinedText(
+            dc, _centerX - 50, complicationsY + 20,
+            Graphics.FONT_MEDIUM, stepStr,
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER,
+            Graphics.COLOR_LT_GRAY
         );
 
         // Divider dot
         dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(_centerX, complicationsY + 8, 2);
+        dc.fillCircle(_centerX, complicationsY + 10, 2);
 
         // --- Battery (right) ---
         var stats      = System.getSystemStats();
@@ -133,23 +138,19 @@ class WatchFaceView extends WatchUi.WatchFace {
             ? Graphics.COLOR_RED
             : battPct <= 30
                 ? Graphics.COLOR_ORANGE
-                : Graphics.COLOR_WHITE;
+                : Graphics.COLOR_LT_GRAY;
 
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(
-            _centerX + 50,
-            complicationsY,
-            Graphics.FONT_XTINY,
-            "BATTERY",
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER
+        drawOutlinedText(
+            dc, _centerX + 50, complicationsY,
+            Graphics.FONT_TINY, "BATTERY",
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER,
+            Graphics.COLOR_LT_GRAY
         );
-        dc.setColor(battColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(
-            _centerX + 50,
-            complicationsY + 16,
-            Graphics.FONT_SMALL,
-            battStr,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER
+        drawOutlinedText(
+            dc, _centerX + 50, complicationsY + 20,
+            Graphics.FONT_MEDIUM, battStr,
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER,
+            battColor
         );
     }
 
