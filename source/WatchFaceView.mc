@@ -74,33 +74,17 @@ class WatchFaceView extends WatchUi.WatchFace {
         var hours     = clockTime.hour;
         var minutes   = clockTime.min;
 
-        // 12-hour format — swap to hours.format("%02d") for 24hr
-        var isPm = hours >= 12;
-        hours = hours % 12;
-        if (hours == 0) { hours = 12; }
-
         var timeStr = Lang.format("$1$:$2$", [
-            hours.format("%d"),
+            hours.format("%02d"),
             minutes.format("%02d")
         ]);
 
-        // Large time with white outline
         drawOutlinedText(
             dc, _centerX, _centerY,
             Graphics.FONT_NUMBER_THAI_HOT,
             timeStr,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER,
             Graphics.COLOR_WHITE
-        );
-
-        // AM/PM indicator
-        var amPmStr = isPm ? "PM" : "AM";
-        drawOutlinedText(
-            dc, _centerX + 70, _centerY - 20,
-            Graphics.FONT_TINY,
-            amPmStr,
-            Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER,
-            Graphics.COLOR_LT_GRAY
         );
     }
 
