@@ -74,8 +74,11 @@ class WatchFaceView extends WatchUi.WatchFace {
         var hours     = clockTime.hour;
         var minutes   = clockTime.min;
 
+        hours = hours % 12;
+        if (hours == 0) { hours = 12; }
+
         var timeStr = Lang.format("$1$:$2$", [
-            hours.format("%02d"),
+            hours.format("%d"),
             minutes.format("%02d")
         ]);
 
