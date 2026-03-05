@@ -50,9 +50,15 @@ class WatchFaceView extends WatchUi.WatchFace {
     }
 
     private function drawDate(dc as Dc) as Void {
-        var now  = Gregorian.info(Time.now(), Time.FORMAT_SHORT);
-        var days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-        var dateStr = Lang.format("$1$  $2$", [days[now.day_of_week - 1], now.day]);
+        var now   = Gregorian.info(Time.now(), Time.FORMAT_SHORT);
+        var days  = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+        var months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+                      "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+        var dateStr = Lang.format("$1$  $2$  $3$", [
+            days[now.day_of_week - 1],
+            months[now.month - 1],
+            now.day.format("%02d")
+        ]);
 
         drawOutlinedText(
             dc, _centerX, _centerY - 68,
