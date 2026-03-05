@@ -1,0 +1,21 @@
+# Connect IQ build output
+bin/
+*.prg
+*.prg.debug
+*.iq
+
+# Jungle file (auto-generated)
+# Uncomment if you want to ignore it:
+# *.jungle
+
+# IDE files
+.vscode/
+*.code-workspace
+.settings/
+.project
+.classpath
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride

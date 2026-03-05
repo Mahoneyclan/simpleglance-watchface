@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<iq:manifest xmlns:iq="com.garmin.iq" version="3">
+    <iq:application entry="WatchFaceApp" id="__REPLACE_WITH_UUID__" launchLabel="WatchFace" minApiLevel="3.2.0" name="@Strings.AppName" type="watchface" version="1.0.0">
+        <iq:products>
+            <iq:product id="fenix6pro"/>
+            <iq:product id="fenix6xpro"/>
+            <iq:product id="fenix6s"/>
+            <iq:product id="fenix6spro"/>
+        </iq:products>
+        <iq:permissions>
+            <iq:uses-permission id="Background"/>
+        </iq:permissions>
+        <iq:languages>
+            <iq:language>eng</iq:language>
+        </iq:languages>
+    </iq:application>
+</iq:manifest>
