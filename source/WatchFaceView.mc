@@ -15,6 +15,8 @@ class WatchFaceView extends WatchUi.WatchFace {
 
     // Block colors: Floors, Active Calories, Steps, Stress, Body Battery
     private var BLOCK_COLORS = [0x1155BB, 0x00AA44, 0xBBAA00, 0xCC5500, 0xBB1133];
+    // Darkened versions for unfilled background (≈25% brightness)
+    private var BLOCK_DARK   = [0x071533, 0x003311, 0x332900, 0x331400, 0x330008];
 
     function initialize() {
         WatchFace.initialize();
@@ -40,17 +42,6 @@ class WatchFaceView extends WatchUi.WatchFace {
         drawBlocks(dc);
     }
 
-    // 1px white outline — for date, labels
-    private function drawOutlinedText(dc as Dc, x as Number, y as Number, font as FontType, text as String, justify as Number, textColor as ColorType) as Void {
-        var offsets = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        for (var i = 0; i < offsets.size(); i++) {
-            dc.drawText(x + offsets[i][0], y + offsets[i][1], font, text, justify);
-        }
-        dc.setColor(textColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(x, y, font, text, justify);
-    }
-
     // 3px white outline — frosted glass effect for time
     private function drawGlassText(dc as Dc, x as Number, y as Number, font as FontType, text as String, justify as Number) as Void {
         var offsets = [
@@ -72,48 +63,42 @@ class WatchFaceView extends WatchUi.WatchFace {
         for (var i = 0; i < offsets.size(); i++) {
             dc.drawText(x + offsets[i][0], y + offsets[i][1], font, text, justify);
         }
-        // Frosted grey fill — light enough to show the white glow underneath
         dc.setColor(0xAAAAAA, Graphics.COLOR_TRANSPARENT);
         dc.drawText(x, y, font, text, justify);
     }
 
     // Top row: Moon/Sun | Bluetooth | Battery graphic
     private function drawTopIcons(dc as Dc) as Void {
-        var y        = _centerY - 88; // y = 42
+        var y        = _centerY - 88;
         var settings = System.getDeviceSettings();
         var stats    = System.getSystemStats();
         var hour     = System.getClockTime().hour;
 
-        // Moon (PM) or Sun (AM)
         if (hour >= 12) {
-            drawMoonIcon(dc, _centerX - 55, y);
+            drawMoonIcon(dc, _centerX - 38, y);
         } else {
-            drawSunIcon(dc, _centerX - 55, y);
+            drawSunIcon(dc, _centerX - 38, y);
         }
 
-        // Bluetooth
         drawBtIcon(dc, _centerX, y, settings.phoneConnected);
-
-        // Battery graphic
-        drawBatteryGraphic(dc, _centerX + 55, y, stats.battery.toNumber());
+        drawBatteryGraphic(dc, _centerX + 38, y, stats.battery.toNumber());
     }
 
     private function drawDate(dc as Dc) as Void {
         var now    = Gregorian.info(Time.now(), Time.FORMAT_SHORT);
-        var days   = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-        var months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-                      "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+        var days   = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         var dateStr = Lang.format("$1$  $2$  $3$", [
             days[now.day_of_week - 1],
             months[now.month - 1],
             now.day.format("%02d")
         ]);
-        drawOutlinedText(dc, _centerX, _centerY - 66, Graphics.FONT_MEDIUM, dateStr,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER,
-            Graphics.COLOR_LT_GRAY);
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(_centerX, _centerY - 66, Graphics.FONT_MEDIUM, dateStr,
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
-    // Large time, white outline, grey fill
     private function drawTime(dc as Dc) as Void {
         var clockTime = System.getClockTime();
         var hours     = clockTime.hour % 12;
@@ -124,68 +109,107 @@ class WatchFaceView extends WatchUi.WatchFace {
     }
 
     // 5 colored blocks: Floors | Active Cal | Steps | Stress | Body Battery
-    private function drawBlocks(dc as Dc) as Void {
-        var actInfo  = ActivityMonitor.getInfo();
-        var blockTop = _centerY + 46;
-        var bw       = _screenWidth / 5;
+    // Goals: floors=10, calories=500, steps=10000, stress=lower is better, body=0-100
+    private var BLOCK_GOALS = [10.0f, 500.0f, 10000.0f, 100.0f, 100.0f];
 
-        var values = ["--", "--", "--", "--", "--"] as Array<String>;
+    private function drawBlocks(dc as Dc) as Void {
+        var actInfo     = ActivityMonitor.getInfo();
+        var blockTop    = _centerY + 46;
+        var bw          = _screenWidth / 5;
+        var blockHeight = _screenHeight - blockTop;
+
+        var values     = ["--", "--", "--", "--", "--"] as Array<String>;
+        var fillRatios = [0.0f, 0.0f, 0.0f, 0.0f, 0.0f] as Array<Float>;
 
         if (actInfo != null) {
-            // Floors
+            // Floors — goal: 10
             if (actInfo.floorsClimbed != null) {
-                values[0] = actInfo.floorsClimbed.toString();
+                var v = actInfo.floorsClimbed as Number;
+                values[0] = v.toString();
+                fillRatios[0] = v.toFloat() / BLOCK_GOALS[0];
             }
-            // Active calories
+            // Calories — goal: 500
             if (actInfo.calories != null) {
-                values[1] = actInfo.calories.toString();
+                var v = actInfo.calories as Number;
+                values[1] = v.toString();
+                fillRatios[1] = v.toFloat() / BLOCK_GOALS[1];
             }
-            // Steps
+            // Steps — goal: 10,000
             if (actInfo.steps != null) {
-                var steps = actInfo.steps as Number;
-                values[2] = steps >= 1000
-                    ? Lang.format("$1$k", [(steps / 1000.0).format("%.1f")])
-                    : steps.toString();
+                var v = actInfo.steps as Number;
+                values[2] = v >= 1000
+                    ? Lang.format("$1$k", [(v / 1000.0).format("%.1f")])
+                    : v.toString();
+                fillRatios[2] = v.toFloat() / BLOCK_GOALS[2];
             }
-            // Stress
+            // Stress — lower is better: fill = (100 - stress) / 100
             if ((actInfo has :stressScore) && actInfo.stressScore != null) {
-                values[3] = actInfo.stressScore.toString();
+                var v = actInfo.stressScore as Number;
+                values[3] = v.toString();
+                fillRatios[3] = (100.0f - v.toFloat()) / 100.0f;
             }
-            // Body battery
+            // Body battery — 0-100
             if ((actInfo has :bodyBatteryHistory)
                 && actInfo.bodyBatteryHistory != null
                 && actInfo.bodyBatteryHistory.size() > 0) {
-                values[4] = actInfo.bodyBatteryHistory[0].toString() + "%";
+                var v = actInfo.bodyBatteryHistory[0] as Number;
+                values[4] = v.toString() + "%";
+                fillRatios[4] = v.toFloat() / 100.0f;
             }
         }
 
+        // Clamp ratios and track sparkline y positions
+        var sparkY = [0, 0, 0, 0, 0] as Array<Number>;
+
         for (var i = 0; i < 5; i++) {
-            var bx = i * bw;
-            var cx = bx + bw / 2;
+            if (fillRatios[i] > 1.0f) { fillRatios[i] = 1.0f; }
+            if (fillRatios[i] < 0.0f) { fillRatios[i] = 0.0f; }
 
+            var bx    = i * bw;
+            var cx    = bx + bw / 2;
+            var fillH = (blockHeight.toFloat() * fillRatios[i]).toNumber();
+            var fillY = blockTop + blockHeight - fillH;
+
+            // Dark unfilled background
+            dc.setColor(BLOCK_DARK[i], BLOCK_DARK[i]);
+            dc.fillRectangle(bx, blockTop, bw, blockHeight);
+
+            // Bright fill rising from bottom
             dc.setColor(BLOCK_COLORS[i], BLOCK_COLORS[i]);
-            dc.fillRectangle(bx, blockTop, bw, _screenHeight - blockTop);
+            dc.fillRectangle(bx, fillY, bw, fillH);
 
+            sparkY[i] = fillY;
+
+            // Value text — always on top
             dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
             dc.drawText(cx, blockTop + 13, Graphics.FONT_TINY, values[i],
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-            drawBlockIcon(dc, cx, blockTop + 38, i);
+            // Icon below value
+            drawBlockIcon(dc, cx, blockTop + 36, i);
         }
+
+        // Sparkline connecting fill levels across blocks
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(2);
+        for (var i = 0; i < 4; i++) {
+            dc.drawLine(i * bw + bw / 2, sparkY[i], (i + 1) * bw + bw / 2, sparkY[i + 1]);
+        }
+        dc.setPenWidth(1);
     }
 
     private function drawBlockIcon(dc as Dc, cx as Number, cy as Number, type as Number) as Void {
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         if (type == 0) {
-            drawStairsIcon(dc, cx, cy);        // Floors
+            drawStairsIcon(dc, cx, cy);
         } else if (type == 1) {
-            drawLightningIcon(dc, cx, cy);     // Active Calories
+            drawLightningIcon(dc, cx, cy);
         } else if (type == 2) {
-            drawFootstepsIcon(dc, cx, cy);     // Steps
+            drawFootstepsIcon(dc, cx, cy);
         } else if (type == 3) {
-            drawFlameIcon(dc, cx, cy);         // Stress
+            drawFlameIcon(dc, cx, cy);
         } else if (type == 4) {
-            drawBodyIcon(dc, cx, cy);          // Body Battery
+            drawBodyIcon(dc, cx, cy);
         }
     }
 
@@ -193,19 +217,18 @@ class WatchFaceView extends WatchUi.WatchFace {
 
     private function drawMoonIcon(dc as Dc, cx as Number, cy as Number) as Void {
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(cx, cy, 8);
+        dc.fillCircle(cx, cy, 6);
         dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(cx + 4, cy - 3, 6);
+        dc.fillCircle(cx + 3, cy - 2, 5);
     }
 
     private function drawSunIcon(dc as Dc, cx as Number, cy as Number) as Void {
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(cx, cy, 5);
-        // 8 rays (hardcoded directions)
-        var ix = [ 0,  4,  6,  4,  0, -4, -6, -4];
-        var iy = [-6, -4,  0,  4,  6,  4,  0, -4];
-        var ox = [ 0,  7, 10,  7,  0, -7,-10, -7];
-        var oy = [-10,-7,  0,  7, 10,  7,  0, -7];
+        dc.fillCircle(cx, cy, 4);
+        var ix = [ 0,  3,  5,  3,  0, -3, -5, -3];
+        var iy = [-5, -3,  0,  3,  5,  3,  0, -3];
+        var ox = [ 0,  5,  8,  5,  0, -5, -8, -5];
+        var oy = [-8, -5,  0,  5,  8,  5,  0, -5];
         for (var i = 0; i < 8; i++) {
             dc.drawLine(cx + ix[i], cy + iy[i], cx + ox[i], cy + oy[i]);
         }
@@ -214,16 +237,16 @@ class WatchFaceView extends WatchUi.WatchFace {
     private function drawBtIcon(dc as Dc, cx as Number, cy as Number, connected as Boolean) as Void {
         var color = connected ? Graphics.COLOR_BLUE : Graphics.COLOR_DK_GRAY;
         dc.setColor(color, Graphics.COLOR_TRANSPARENT);
-        dc.drawLine(cx, cy - 8, cx, cy + 8);         // vertical stem
-        dc.drawLine(cx, cy - 8, cx + 5, cy - 4);     // upper-right out
-        dc.drawLine(cx + 5, cy - 4, cx, cy);          // upper-right back
-        dc.drawLine(cx, cy, cx + 5, cy + 4);          // lower-right out
-        dc.drawLine(cx + 5, cy + 4, cx, cy + 8);      // lower-right back
+        dc.drawLine(cx, cy - 6, cx, cy + 6);
+        dc.drawLine(cx, cy - 6, cx + 4, cy - 3);
+        dc.drawLine(cx + 4, cy - 3, cx, cy);
+        dc.drawLine(cx, cy, cx + 4, cy + 3);
+        dc.drawLine(cx + 4, cy + 3, cx, cy + 6);
     }
 
     private function drawBatteryGraphic(dc as Dc, cx as Number, cy as Number, pct as Number) as Void {
-        var bw = 22;
-        var bh = 10;
+        var bw = 18;
+        var bh = 8;
         var x  = cx - bw / 2;
         var y  = cy - bh / 2;
         var col = pct <= 15
@@ -231,9 +254,9 @@ class WatchFaceView extends WatchUi.WatchFace {
             : pct <= 30 ? Graphics.COLOR_ORANGE : Graphics.COLOR_WHITE;
         dc.setColor(col, Graphics.COLOR_TRANSPARENT);
         dc.drawRectangle(x, y, bw, bh);
-        dc.fillRectangle(x + bw, y + 3, 3, bh - 6);          // terminal nub
+        dc.fillRectangle(x + bw, y + 2, 2, bh - 4);
         var fillW = ((bw - 4) * pct / 100).toNumber();
-        dc.fillRectangle(x + 2, y + 2, fillW, bh - 4);        // fill level
+        dc.fillRectangle(x + 2, y + 2, fillW, bh - 4);
     }
 
     // ── Block icon helpers ────────────────────────────────────────────────────
@@ -266,14 +289,10 @@ class WatchFaceView extends WatchUi.WatchFace {
     }
 
     private function drawBodyIcon(dc as Dc, cx as Number, cy as Number) as Void {
-        // Head
         dc.fillCircle(cx, cy - 7, 3);
-        // Torso
         dc.fillRectangle(cx - 3, cy - 3, 6, 6);
-        // Arms
         dc.drawLine(cx - 3, cy - 2, cx - 7, cy + 2);
         dc.drawLine(cx + 3, cy - 2, cx + 7, cy + 2);
-        // Legs
         dc.drawLine(cx - 2, cy + 3, cx - 4, cy + 9);
         dc.drawLine(cx + 2, cy + 3, cx + 4, cy + 9);
     }
