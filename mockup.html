@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fenix 6 Pro – Watch Face Mockup</title>
+<style>
+  body { background:#111; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; margin:0; font-family:-apple-system,sans-serif; }
+  h3 { color:#555; margin-bottom:12px; letter-spacing:2px; font-size:11px; text-transform:uppercase; }
+</style>
+</head>
+<body>
+<h3>Garmin Fenix 6 Pro — Watch Face Preview</h3>
+<canvas id="c" width="600" height="600"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const CX = 300, CY = 300, R = 260;
+function sx(x) { return x * 2 + (CX - 130 * 2); }
+function sy(y) { return y * 2 + (CY - 130 * 2); }
+
+// Clip to circle
+ctx.save();
+ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI*2); ctx.clip();
+ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 600, 600);
+
+// ── TOP ICONS (y=30) ──────────────────────────────────────────────────────
+const iy   = sy(30);
+const hour = new Date().getHours();
+
+// Moon / Sun
+const mx = sx(95), my = iy;
+if (hour >= 12) {
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(mx, my, 9, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(mx+5, my-3, 7, 0, Math.PI*2); ctx.fill();
+} else {
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(mx, my, 6, 0, Math.PI*2); ctx.fill();
+  const rays =[[0,-10],[7,-7],[10,0],[7,7],[0,10],[-7,7],[-10,0],[-7,-7]];
+  const inn  =[[0,-7],[5,-5],[7,0],[5,5],[0,7],[-5,5],[-7,0],[-5,-5]];
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
+  for(let i=0;i<8;i++){ctx.beginPath();ctx.moveTo(mx+inn[i][0],my+inn[i][1]);ctx.lineTo(mx+rays[i][0],my+rays[i][1]);ctx.stroke();}
+}
+
+// Bluetooth
+const bx=sx(130), by=iy;
+ctx.strokeStyle='#4488ff'; ctx.lineWidth=2;
+ctx.beginPath(); ctx.moveTo(bx,by-9); ctx.lineTo(bx,by+9); ctx.stroke();
+ctx.beginPath(); ctx.moveTo(bx,by-9); ctx.lineTo(bx+6,by-4); ctx.lineTo(bx,by); ctx.lineTo(bx+6,by+4); ctx.lineTo(bx,by+9); ctx.stroke();
+
+// Battery graphic
+const bpx=sx(165), bpy=iy, battPct=78, bw2=32, bh=14;
+const battCol = battPct<=15?'#f33':battPct<=30?'#f80':'#fff';
+ctx.strokeStyle=battCol; ctx.lineWidth=1.5;
+ctx.strokeRect(bpx-bw2/2, bpy-bh/2, bw2, bh);
+ctx.fillStyle=battCol;
+ctx.fillRect(bpx+bw2/2, bpy-3, 3, 7);
+ctx.fillRect(bpx-bw2/2+2, bpy-bh/2+2, Math.round((bw2-4)*battPct/100), bh-4);
+
+// ── DATE (y=58) ───────────────────────────────────────────────────────────
+const now    = new Date();
+const days   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const dateStr = `${days[now.getDay()]}  ${months[now.getMonth()]}  ${String(now.getDate()).padStart(2,'0')}`;
+ctx.font='300 24px -apple-system,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+ctx.fillStyle='#fff'; ctx.fillText(dateStr, sx(130), sy(58));
+
+// ── TIME — frosted glass (y=122) ──────────────────────────────────────────
+let h = now.getHours()%12||12;
+const timeStr = `${String(h).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+const tx=sx(130), ty=sy(122);
+ctx.font='bold 172px -apple-system,BlinkMacSystemFont,sans-serif';
+ctx.textAlign='center'; ctx.textBaseline='middle';
+for(const[lw,alpha] of [[14,0.12],[10,0.22],[7,0.38],[4,0.65]]){
+  ctx.strokeStyle=`rgba(255,255,255,${alpha})`; ctx.lineWidth=lw; ctx.strokeText(timeStr,tx,ty);
+}
+ctx.fillStyle='#aaa'; ctx.fillText(timeStr,tx,ty);
+
+// ── BLOCKS with progressive fill + sparkline ─────────────────────────────
+const blockTop    = sy(176);
+const blockColors = ['#1155BB','#00AA44','#BBAA00','#CC5500','#BB1133'];
+const blockDark   = ['#071533','#003311','#332900','#331400','#330008'];
+const blockVals   = ['7','342','8.2k','45','71%'];
+// fill ratios: floors/10, cal/500, steps/10000, (100-stress)/100, body/100
+const fillRatios  = [7/10, 342/500, 8200/10000, 55/100, 71/100];
+const blockW      = 600/5;
+const blockHeight = 600 - blockTop;
+const sparkY      = [];
+
+for(let i=0;i<5;i++){
+  const bx2   = i*blockW, bcx = bx2+blockW/2;
+  const ratio = Math.min(1,Math.max(0,fillRatios[i]));
+  const fillH = Math.round(blockHeight*ratio);
+  const fillY = blockTop+blockHeight-fillH;
+  sparkY.push(fillY);
+
+  // Dark background
+  ctx.fillStyle=blockDark[i]; ctx.fillRect(bx2,blockTop,blockW,blockHeight);
+  // Bright fill from bottom
+  ctx.fillStyle=blockColors[i]; ctx.fillRect(bx2,fillY,blockW,fillH);
+
+  // Value
+  ctx.font='bold 22px -apple-system,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle='#fff'; ctx.fillText(blockVals[i], bcx, blockTop+26);
+
+  // Icon
+  drawIcon(ctx, bcx, blockTop+56, i);
+}
+
+// Sparkline
+ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2.5;
+ctx.beginPath();
+for(let i=0;i<5;i++){
+  const x=i*blockW+blockW/2;
+  i===0?ctx.moveTo(x,sparkY[i]):ctx.lineTo(x,sparkY[i]);
+}
+ctx.stroke();
+
+// Sparkline dots
+ctx.fillStyle='#fff';
+for(let i=0;i<5;i++){
+  ctx.beginPath(); ctx.arc(i*blockW+blockW/2, sparkY[i], 3, 0, Math.PI*2); ctx.fill();
+}
+
+function drawIcon(ctx,cx,cy,type){
+  ctx.fillStyle='#fff'; ctx.strokeStyle='#fff'; ctx.lineWidth=2.5;
+  if(type===0){ // Stairs
+    ctx.fillRect(cx-12,cy+4,24,4); ctx.fillRect(cx-4,cy-4,16,4); ctx.fillRect(cx+4,cy-12,8,4);
+    ctx.fillRect(cx-4,cy-4,4,8); ctx.fillRect(cx+4,cy-12,4,16);
+  } else if(type===1){ // Lightning
+    ctx.beginPath(); ctx.moveTo(cx+4,cy-16); ctx.lineTo(cx-8,cy+1); ctx.lineTo(cx,cy+1);
+    ctx.lineTo(cx-4,cy+16); ctx.lineTo(cx+8,cy-1); ctx.lineTo(cx,cy-1); ctx.closePath(); ctx.fill();
+  } else if(type===2){ // Footsteps
+    ctx.beginPath(); ctx.ellipse(cx-7,cy-5,5,8,-0.3,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx+7,cy+5,5,8,0.3,0,Math.PI*2); ctx.fill();
+  } else if(type===3){ // Flame
+    ctx.beginPath(); ctx.moveTo(cx,cy-16);
+    ctx.bezierCurveTo(cx+14,cy-8,cx+10,cy+6,cx,cy+14);
+    ctx.bezierCurveTo(cx-10,cy+6,cx-14,cy-8,cx,cy-16);
+    ctx.fill(); ctx.fillStyle='#fa0';
+    ctx.beginPath(); ctx.arc(cx,cy+4,6,0,Math.PI*2); ctx.fill();
+  } else if(type===4){ // Body
+    ctx.beginPath(); ctx.arc(cx,cy-14,7,0,Math.PI*2); ctx.fill();
+    ctx.fillRect(cx-5,cy-6,10,10);
+    ctx.beginPath();
+    ctx.moveTo(cx-5,cy-4); ctx.lineTo(cx-14,cy+4);
+    ctx.moveTo(cx+5,cy-4); ctx.lineTo(cx+14,cy+4);
+    ctx.moveTo(cx-3,cy+4); ctx.lineTo(cx-5,cy+18);
+    ctx.moveTo(cx+3,cy+4); ctx.lineTo(cx+5,cy+18);
+    ctx.stroke();
+  }
+}
+
+// ── Bezel ─────────────────────────────────────────────────────────────────
+ctx.restore();
+ctx.strokeStyle='#282828'; ctx.lineWidth=14;
+ctx.beginPath(); ctx.arc(CX,CY,R+4,0,Math.PI*2); ctx.stroke();
+ctx.strokeStyle='#444'; ctx.lineWidth=2;
+ctx.beginPath(); ctx.arc(CX,CY,R-1,0,Math.PI*2); ctx.stroke();
+</script>
+</body>
+</html>
