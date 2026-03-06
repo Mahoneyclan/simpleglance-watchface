@@ -116,16 +116,13 @@ class WatchFaceView extends WatchUi.WatchFace {
         bdc.setColor(0xAAAAAA, Graphics.COLOR_TRANSPARENT);
         bdc.drawText(bcx, bcy, font, timeStr, justify);
 
-        // Stretch taller and wider to fill the face
-        var scaleX  = 1.28f;
+        // Stretch vertically only — destX=0 (full-width buffer, no horizontal overflow)
         var scaleY  = 1.95f;
-        var scaledW = (bw.toFloat() * scaleX).toNumber();
         var scaledH = (bh.toFloat() * scaleY).toNumber();
-        var destX   = (_screenWidth  - scaledW) / 2;  // center horizontally (negative offset)
         var destY   = (_screenHeight / 2) - scaledH / 2 - 10;
         var transform = new Graphics.AffineTransform();
-        transform.scale(scaleX, scaleY);
-        dc.drawBitmap2(destX, destY, bitmapRef.get(), {:transform => transform});
+        transform.scale(1.0f, scaleY);
+        dc.drawBitmap2(0, destY, bitmapRef.get(), {:transform => transform});
     }
 
     // Two bottom fields: Steps (left) | Body Battery (right)
