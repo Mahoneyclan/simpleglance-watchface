@@ -15,6 +15,10 @@ bin/
 .project
 .classpath
 
+# Developer key — do not commit
+developer_key
+developer_key.der
+
 # macOS
 .DS_Store
 .AppleDouble
