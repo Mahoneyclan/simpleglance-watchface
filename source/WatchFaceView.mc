@@ -40,14 +40,40 @@ class WatchFaceView extends WatchUi.WatchFace {
         drawBlocks(dc);
     }
 
-    // White outline, grey fill — used for time and date
+    // 1px white outline — for date, labels
     private function drawOutlinedText(dc as Dc, x as Number, y as Number, font as FontType, text as String, justify as Number, textColor as ColorType) as Void {
-        var offsets = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+        var offsets = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         for (var i = 0; i < offsets.size(); i++) {
             dc.drawText(x + offsets[i][0], y + offsets[i][1], font, text, justify);
         }
         dc.setColor(textColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x, y, font, text, justify);
+    }
+
+    // 3px white outline — frosted glass effect for time
+    private function drawGlassText(dc as Dc, x as Number, y as Number, font as FontType, text as String, justify as Number) as Void {
+        var offsets = [
+            [-3,-3],[-2,-3],[-1,-3],[0,-3],[1,-3],[2,-3],[3,-3],
+            [-3,-2],                                     [3,-2],
+            [-3,-1],                                     [3,-1],
+            [-3, 0],                                     [3, 0],
+            [-3, 1],                                     [3, 1],
+            [-3, 2],                                     [3, 2],
+            [-3, 3],[-2, 3],[-1, 3],[0, 3],[1, 3],[2, 3],[3, 3],
+            [-2,-2],[-1,-2],[0,-2],[1,-2],[2,-2],
+            [-2,-1],                    [2,-1],
+            [-2, 0],                    [2, 0],
+            [-2, 1],                    [2, 1],
+            [-2, 2],[-1, 2],[0, 2],[1, 2],[2, 2],
+            [-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]
+        ];
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        for (var i = 0; i < offsets.size(); i++) {
+            dc.drawText(x + offsets[i][0], y + offsets[i][1], font, text, justify);
+        }
+        // Frosted grey fill — light enough to show the white glow underneath
+        dc.setColor(0xAAAAAA, Graphics.COLOR_TRANSPARENT);
         dc.drawText(x, y, font, text, justify);
     }
 
@@ -93,9 +119,8 @@ class WatchFaceView extends WatchUi.WatchFace {
         var hours     = clockTime.hour % 12;
         if (hours == 0) { hours = 12; }
         var timeStr = Lang.format("$1$:$2$", [hours.format("%02d"), clockTime.min.format("%02d")]);
-        drawOutlinedText(dc, _centerX, _centerY - 8, Graphics.FONT_NUMBER_THAI_HOT, timeStr,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER,
-            Graphics.COLOR_LT_GRAY);
+        drawGlassText(dc, _centerX, _centerY - 8, Graphics.FONT_NUMBER_THAI_HOT, timeStr,
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
     // 5 colored blocks: Floors | Active Cal | Steps | Stress | Body Battery
