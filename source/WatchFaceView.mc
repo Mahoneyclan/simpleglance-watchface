@@ -137,8 +137,8 @@ class WatchFaceView extends WatchUi.WatchFace {
                 values[0] = actInfo.floorsClimbed.toString();
             }
             // Active calories
-            if (actInfo.activeCalories != null) {
-                values[1] = actInfo.activeCalories.toString();
+            if (actInfo.calories != null) {
+                values[1] = actInfo.calories.toString();
             }
             // Steps
             if (actInfo.steps != null) {
@@ -248,7 +248,7 @@ class WatchFaceView extends WatchUi.WatchFace {
 
     private function drawLightningIcon(dc as Dc, cx as Number, cy as Number) as Void {
         var pts = [[cx + 2, cy - 9], [cx - 4, cy], [cx, cy],
-                   [cx - 2, cy + 9], [cx + 4, cy], [cx, cy]] as Array<Array<Number>>;
+                   [cx - 2, cy + 9], [cx + 4, cy], [cx, cy]] as Array<[Number, Number]>;
         dc.fillPolygon(pts);
     }
 
@@ -259,7 +259,7 @@ class WatchFaceView extends WatchUi.WatchFace {
 
     private function drawFlameIcon(dc as Dc, cx as Number, cy as Number) as Void {
         var pts = [[cx, cy - 9], [cx + 5, cy - 2], [cx + 5, cy + 5],
-                   [cx, cy + 8], [cx - 5, cy + 5], [cx - 5, cy - 2]] as Array<Array<Number>>;
+                   [cx, cy + 8], [cx - 5, cy + 5], [cx - 5, cy - 2]] as Array<[Number, Number]>;
         dc.fillPolygon(pts);
         dc.setColor(0xFFAA00, Graphics.COLOR_TRANSPARENT);
         dc.fillCircle(cx, cy + 2, 3);
