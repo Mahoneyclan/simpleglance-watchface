@@ -9,9 +9,7 @@ import Toybox.WatchUi;
 class WatchFaceView extends WatchUi.WatchFace {
 
     private var _screenWidth  as Number = 260;
-    private var _screenHeight as Number = 260;
     private var _centerX      as Number = 130;
-    private var _centerY      as Number = 130;
 
 
     function initialize() {
@@ -20,9 +18,7 @@ class WatchFaceView extends WatchUi.WatchFace {
 
     function onLayout(dc as Dc) as Void {
         _screenWidth  = dc.getWidth();
-        _screenHeight = dc.getHeight();
         _centerX      = _screenWidth  / 2;
-        _centerY      = _screenHeight / 2;
     }
 
     function onShow() as Void {
@@ -60,38 +56,32 @@ class WatchFaceView extends WatchUi.WatchFace {
         var days   = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        var dateStr = Lang.format("$1$  $2$  $3$", [
+        var dateStr = Lang.format("$1$ $2$ $3$", [
             days[now.day_of_week - 1],
-            months[now.month - 1],
-            now.day.format("%02d")
+            now.day.format("%02d"),
+            months[now.month - 1]
         ]);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         dc.drawText(_centerX, 40, Graphics.FONT_SMALL, dateStr,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
-    // System font time rendered to buffer, then drawn with vertical scale (frosted glass)
+    // Custom font time — white outline + grey fill (frosted glass)
+    // Colon is drawn manually as two small dots so it doesn't dominate.
     private function drawTime(dc as Dc) as Void {
         var clockTime = System.getClockTime();
         var hours     = clockTime.hour % 12;
         if (hours == 0) { hours = 12; }
-        var timeStr = Lang.format("$1$:$2$", [hours.format("%02d"), clockTime.min.format("%02d")]);
-        var font    = Graphics.FONT_NUMBER_THAI_HOT;
-        var justify = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        var hrStr  = hours.format("%02d");
+        var minStr = clockTime.min.format("%02d");
+        var font   = WatchUi.loadResource(Rez.Fonts.TimeFont) as Graphics.FontReference;
+        var justR  = Graphics.TEXT_JUSTIFY_RIGHT  | Graphics.TEXT_JUSTIFY_VCENTER;
+        var justL  = Graphics.TEXT_JUSTIFY_LEFT   | Graphics.TEXT_JUSTIFY_VCENTER;
+        var y      = 118;
+        var gap    = 8;  // px each side of colon
+        var cx     = _centerX;
 
-        // Off-screen buffer: full width, font height + outline padding
-        var fh  = dc.getFontHeight(font);
-        var pad = 4;
-        var bw  = _screenWidth;
-        var bh  = fh + pad * 2;
-
-        var bitmapRef = Graphics.createBufferedBitmap({:width => bw, :height => bh});
-        if (bitmapRef == null) { return; }
-        var bdc = bitmapRef.get().getDc();
-
-        bdc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
-        bdc.clear();
-
+        // Outline offsets — 3px hollow border
         var offsets = [
             [-3,-3],[-2,-3],[-1,-3],[0,-3],[1,-3],[2,-3],[3,-3],
             [-3,-2],                                     [3,-2],
@@ -107,29 +97,46 @@ class WatchFaceView extends WatchUi.WatchFace {
             [-2, 2],[-1, 2],[0, 2],[1, 2],[2, 2],
             [-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]
         ];
-        var bcx = bw / 2;
-        var bcy = bh / 2;
-        bdc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        for (var i = 0; i < offsets.size(); i++) {
-            bdc.drawText(bcx + offsets[i][0], bcy + offsets[i][1], font, timeStr, justify);
-        }
-        bdc.setColor(0xAAAAAA, Graphics.COLOR_TRANSPARENT);
-        bdc.drawText(bcx, bcy, font, timeStr, justify);
 
-        // Stretch vertically only — destX=0 (full-width buffer, no horizontal overflow)
-        var scaleY  = 1.95f;
-        var scaledH = (bh.toFloat() * scaleY).toNumber();
-        var destY   = (_screenHeight / 2) - scaledH / 2 - 10;
-        var transform = new Graphics.AffineTransform();
-        transform.scale(1.0f, scaleY);
-        dc.drawBitmap2(0, destY, bitmapRef.get(), {:transform => transform});
+        // White outline pass for both digit groups
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        for (var i = 0; i < offsets.size(); i++) {
+            var dx = offsets[i][0];
+            var dy = offsets[i][1];
+            dc.drawText(cx - gap + dx, y + dy, font, hrStr,  justR);
+            dc.drawText(cx + gap + dx, y + dy, font, minStr, justL);
+        }
+
+        // Grey fill pass
+        dc.setColor(0xAAAAAA, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx - gap, y, font, hrStr,  justR);
+        dc.drawText(cx + gap, y, font, minStr, justL);
+
+        // Small colon: two 4x4 dots centred on cx, offset ±10px from midline
+        var dotR = 2;
+        var dotY1 = y - 10;
+        var dotY2 = y + 10;
+
+        // Dot outlines
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        for (var i = 0; i < offsets.size(); i++) {
+            var dx = offsets[i][0];
+            var dy = offsets[i][1];
+            dc.fillCircle(cx + dx, dotY1 + dy, dotR);
+            dc.fillCircle(cx + dx, dotY2 + dy, dotR);
+        }
+        // Dot fill
+        dc.setColor(0xAAAAAA, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(cx, dotY1, dotR);
+        dc.fillCircle(cx, dotY2, dotR);
     }
 
     // Two bottom fields: Steps (left) | Body Battery (right)
     private function drawBlocks(dc as Dc) as Void {
         var actInfo = ActivityMonitor.getInfo();
         var stepsVal = "--" as String;
-        var bodyVal  = "--" as String;
+
+        var floorsVal = "--" as String;
 
         if (actInfo != null) {
             if (actInfo.steps != null) {
@@ -138,10 +145,8 @@ class WatchFaceView extends WatchUi.WatchFace {
                     ? Lang.format("$1$k", [(v / 1000.0).format("%.1f")])
                     : v.toString();
             }
-            if ((actInfo has :bodyBatteryHistory)
-                && actInfo.bodyBatteryHistory != null
-                && actInfo.bodyBatteryHistory.size() > 0) {
-                bodyVal = (actInfo.bodyBatteryHistory[0] as Number).toString() + "%";
+            if (actInfo.floorsClimbed != null) {
+                floorsVal = (actInfo.floorsClimbed as Number).toString();
             }
         }
 
@@ -160,11 +165,11 @@ class WatchFaceView extends WatchUi.WatchFace {
         dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
         dc.drawLine(_centerX, y - 18, _centerX, y + 18);
 
-        // Body Battery
+        // Floors
         dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(rightX, y - 10, Graphics.FONT_XTINY, "BODY BAT", justify);
+        dc.drawText(rightX, y - 10, Graphics.FONT_XTINY, "FLOORS", justify);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(rightX, y + 10, Graphics.FONT_SMALL, bodyVal, justify);
+        dc.drawText(rightX, y + 10, Graphics.FONT_SMALL, floorsVal, justify);
     }
 
     // ── Top icon helpers ──────────────────────────────────────────────────────
@@ -203,9 +208,9 @@ class WatchFaceView extends WatchUi.WatchFace {
         var bh = 8;
         var x  = cx - bw / 2;
         var y  = cy - bh / 2;
-        var col = pct <= 15
+        var col = pct < 10
             ? Graphics.COLOR_RED
-            : pct <= 30 ? Graphics.COLOR_ORANGE : Graphics.COLOR_WHITE;
+            : pct <= 50 ? Graphics.COLOR_ORANGE : Graphics.COLOR_GREEN;
         dc.setColor(col, Graphics.COLOR_TRANSPARENT);
         dc.drawRectangle(x, y, bw, bh);
         dc.fillRectangle(x + bw, y + 2, 2, bh - 4);

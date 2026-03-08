@@ -1,4 +1,5 @@
-<layouts xmlns="http://www.garmin.com/xml/connectiq">
+<?xml version="1.0"?>
+<layouts>
     <layout id="WatchFace">
     </layout>
 </layouts>
