@@ -6,11 +6,15 @@ import Toybox.Time;
 import Toybox.Time.Gregorian;
 import Toybox.WatchUi;
 
+// ── Theme ─────────────────────────────────────────────────────────────────────
+// Set DARK_MODE = false for a white/positive screen (black numbers on white).
+const DARK_MODE = true;
+// ─────────────────────────────────────────────────────────────────────────────
+
 class WatchFaceView extends WatchUi.WatchFace {
 
     private var _screenWidth  as Number = 260;
     private var _centerX      as Number = 130;
-
 
     function initialize() {
         WatchFace.initialize();
@@ -25,7 +29,8 @@ class WatchFaceView extends WatchUi.WatchFace {
     }
 
     function onUpdate(dc as Dc) as Void {
-        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+        var bg = DARK_MODE ? Graphics.COLOR_BLACK : Graphics.COLOR_WHITE;
+        dc.setColor(bg, bg);
         dc.clear();
 
         drawTopIcons(dc);
@@ -61,12 +66,13 @@ class WatchFaceView extends WatchUi.WatchFace {
             now.day.format("%02d"),
             months[now.month - 1]
         ]);
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        var fg = DARK_MODE ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
+        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
         dc.drawText(_centerX, 40, Graphics.FONT_SMALL, dateStr,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
-    // Custom font time — white outline + grey fill (frosted glass)
+    // Custom font time — frosted glass effect (outline + fill).
     // Colon is drawn manually as two small dots so it doesn't dominate.
     private function drawTime(dc as Dc) as Void {
         var clockTime = System.getClockTime();
@@ -74,12 +80,17 @@ class WatchFaceView extends WatchUi.WatchFace {
         if (hours == 0) { hours = 12; }
         var hrStr  = hours.format("%02d");
         var minStr = clockTime.min.format("%02d");
-        var font   = WatchUi.loadResource(Rez.Fonts.TimeFont) as Graphics.FontReference;
+        var fontRez = DARK_MODE ? Rez.Fonts.TimeFont : Rez.Fonts.TimeFontLight;
+        var font    = WatchUi.loadResource(fontRez) as Graphics.FontReference;
         var justR  = Graphics.TEXT_JUSTIFY_RIGHT  | Graphics.TEXT_JUSTIFY_VCENTER;
         var justL  = Graphics.TEXT_JUSTIFY_LEFT   | Graphics.TEXT_JUSTIFY_VCENTER;
         var y      = 118;
         var gap    = 8;  // px each side of colon
         var cx     = _centerX;
+
+        // Dark: white outline, grey fill.  Light: black outline, dark-grey fill.
+        var outlineCol = DARK_MODE ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
+        var fillCol    = DARK_MODE ? 0xAAAAAA             : 0x555555;
 
         // Outline offsets — 3px hollow border
         var offsets = [
@@ -98,8 +109,8 @@ class WatchFaceView extends WatchUi.WatchFace {
             [-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]
         ];
 
-        // White outline pass for both digit groups
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        // Outline pass
+        dc.setColor(outlineCol, Graphics.COLOR_TRANSPARENT);
         for (var i = 0; i < offsets.size(); i++) {
             var dx = offsets[i][0];
             var dy = offsets[i][1];
@@ -107,35 +118,32 @@ class WatchFaceView extends WatchUi.WatchFace {
             dc.drawText(cx + gap + dx, y + dy, font, minStr, justL);
         }
 
-        // Grey fill pass
-        dc.setColor(0xAAAAAA, Graphics.COLOR_TRANSPARENT);
+        // Fill pass
+        dc.setColor(fillCol, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx - gap, y, font, hrStr,  justR);
         dc.drawText(cx + gap, y, font, minStr, justL);
 
-        // Small colon: two 4x4 dots centred on cx, offset ±10px from midline
-        var dotR = 2;
+        // Small colon: two dots centred on cx, offset ±10px from midline
+        var dotR  = 2;
         var dotY1 = y - 10;
         var dotY2 = y + 10;
 
-        // Dot outlines
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(outlineCol, Graphics.COLOR_TRANSPARENT);
         for (var i = 0; i < offsets.size(); i++) {
             var dx = offsets[i][0];
             var dy = offsets[i][1];
             dc.fillCircle(cx + dx, dotY1 + dy, dotR);
             dc.fillCircle(cx + dx, dotY2 + dy, dotR);
         }
-        // Dot fill
-        dc.setColor(0xAAAAAA, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(fillCol, Graphics.COLOR_TRANSPARENT);
         dc.fillCircle(cx, dotY1, dotR);
         dc.fillCircle(cx, dotY2, dotR);
     }
 
-    // Two bottom fields: Steps (left) | Body Battery (right)
+    // Two bottom fields: Steps (left) | Floors (right)
     private function drawBlocks(dc as Dc) as Void {
-        var actInfo = ActivityMonitor.getInfo();
-        var stepsVal = "--" as String;
-
+        var actInfo   = ActivityMonitor.getInfo();
+        var stepsVal  = "--" as String;
         var floorsVal = "--" as String;
 
         if (actInfo != null) {
@@ -150,39 +158,44 @@ class WatchFaceView extends WatchUi.WatchFace {
             }
         }
 
-        var y     = 205;
-        var leftX = _centerX / 2;
-        var rightX = _centerX + _centerX / 2;
+        var y       = 205;
+        var leftX   = _centerX / 2;
+        var rightX  = _centerX + _centerX / 2;
         var justify = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        var fg      = DARK_MODE ? Graphics.COLOR_WHITE   : Graphics.COLOR_BLACK;
+        var labelFg = DARK_MODE ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
 
         // Steps
-        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(labelFg, Graphics.COLOR_TRANSPARENT);
         dc.drawText(leftX, y - 10, Graphics.FONT_XTINY, "STEPS", justify);
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
         dc.drawText(leftX, y + 10, Graphics.FONT_SMALL, stepsVal, justify);
 
         // Divider
-        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(labelFg, Graphics.COLOR_TRANSPARENT);
         dc.drawLine(_centerX, y - 18, _centerX, y + 18);
 
         // Floors
-        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(labelFg, Graphics.COLOR_TRANSPARENT);
         dc.drawText(rightX, y - 10, Graphics.FONT_XTINY, "FLOORS", justify);
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
         dc.drawText(rightX, y + 10, Graphics.FONT_SMALL, floorsVal, justify);
     }
 
     // ── Top icon helpers ──────────────────────────────────────────────────────
 
     private function drawMoonIcon(dc as Dc, cx as Number, cy as Number) as Void {
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        var fg = DARK_MODE ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
+        var bg = DARK_MODE ? Graphics.COLOR_BLACK : Graphics.COLOR_WHITE;
+        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
         dc.fillCircle(cx, cy, 6);
-        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(bg, Graphics.COLOR_TRANSPARENT);
         dc.fillCircle(cx + 3, cy - 2, 5);
     }
 
     private function drawSunIcon(dc as Dc, cx as Number, cy as Number) as Void {
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        var fg = DARK_MODE ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
+        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
         dc.fillCircle(cx, cy, 4);
         var ix = [ 0,  3,  5,  3,  0, -3, -5, -3];
         var iy = [-5, -3,  0,  3,  5,  3,  0, -3];
@@ -194,7 +207,8 @@ class WatchFaceView extends WatchUi.WatchFace {
     }
 
     private function drawBtIcon(dc as Dc, cx as Number, cy as Number, connected as Boolean) as Void {
-        var color = connected ? Graphics.COLOR_BLUE : Graphics.COLOR_DK_GRAY;
+        var disconnectedCol = DARK_MODE ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
+        var color = connected ? Graphics.COLOR_BLUE : disconnectedCol;
         dc.setColor(color, Graphics.COLOR_TRANSPARENT);
         dc.drawLine(cx, cy - 6, cx, cy + 6);
         dc.drawLine(cx, cy - 6, cx + 4, cy - 3);

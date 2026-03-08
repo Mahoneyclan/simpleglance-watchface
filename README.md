@@ -4,21 +4,39 @@ A clean digital watch face for the Garmin fenix 6 Pro, built with Monkey C / Con
 
 ## Features
 
-- **Time** — DIN Condensed Bold custom font at 100px, frosted glass effect (white outline, grey fill), small dot colon
+- **Time** — DIN Condensed Bold custom font at 100px, frosted glass effect (outlined + filled), small dot colon
 - **Date** — `DDD DD MMM` format (e.g. `Mon 09 Mar`)
 - **Top icons** — Moon/Sun (time of day), Bluetooth status, Battery level
 - **Battery** — colour-coded: green >50%, orange 10–50%, red <10%
 - **Bottom fields** — Steps (left) and Floors climbed (right)
+- **Theme** — dark (white on black) or light/positive (black on white), toggled by one constant
 
 ## Layout
 
 ```
        🌙  🔵  🔋
        Mon 09 Mar
-        10 : 42
+        10 · 42
       STEPS | FLOORS
       8.2k  |   12
 ```
+
+## Theme
+
+Switch between dark and light mode by editing one line in `source/WatchFaceView.mc`:
+
+```monkeyc
+const DARK_MODE = true;   // white text on black (default)
+const DARK_MODE = false;  // black text on white (positive/paper screen)
+```
+
+| Element | Dark | Light |
+|---|---|---|
+| Background | Black | White |
+| Time | Grey fill, white outline | Dark grey fill, black outline |
+| Date / values | White | Black |
+| Labels / divider | Dark grey | Light grey |
+| Battery | Red / orange / green (unchanged) | Red / orange / green (unchanged) |
 
 ## Prerequisites
 
@@ -93,16 +111,18 @@ Eject the device — the watch installs it on reboot.
 ├── developer_key                 # DER-format signing key (not committed)
 ├── source/
 │   ├── WatchFaceApp.mc           # App entry point
-│   └── WatchFaceView.mc          # All drawing logic
+│   └── WatchFaceView.mc          # All drawing logic (theme constant at top)
 └── resources/
     ├── drawables/
     │   ├── drawables.xml         # Launcher icon declaration
     │   └── launcher_icon.png     # 40x40 launcher icon
     ├── fonts/
-    │   ├── fonts.xml             # Custom font resource declaration
-    │   ├── time_font.fnt         # BMFont descriptor for DIN Condensed Bold
-    │   ├── time_font_0.png       # Glyph sprite atlas (digits 0–9)
-    │   └── time_font.ttf         # Source TTF (used to generate .fnt)
+    │   ├── fonts.xml             # Font resource declarations
+    │   ├── time_font.fnt         # BMFont descriptor — white glyphs (dark mode)
+    │   ├── time_font_0.png       # Glyph sprite atlas — white (dark mode)
+    │   ├── time_font_light.fnt   # BMFont descriptor — black glyphs (light mode)
+    │   ├── time_font_light_0.png # Glyph sprite atlas — black (light mode)
+    │   └── time_font.ttf         # Source TTF (DIN Condensed Bold)
     ├── layouts/
     │   └── layout.xml
     └── strings/
@@ -113,17 +133,8 @@ Eject the device — the watch installs it on reboot.
 
 | Thing | Where |
 |---|---|
-| Font size | Regenerate `time_font.fnt` / `time_font_0.png` via the Python script, change `SIZE` variable |
+| Theme | `const DARK_MODE` at top of `WatchFaceView.mc` |
+| Font size | Regenerate atlases via Python script (change `SIZE`), update `fonts.xml` |
 | Battery thresholds | `drawBatteryGraphic()` in `WatchFaceView.mc` |
 | Date format | `drawDate()` in `WatchFaceView.mc` |
 | Bottom fields | `drawBlocks()` in `WatchFaceView.mc` |
-
-### Regenerating the font atlas
-
-```bash
-python3 << 'EOF'
-# Edit SIZE to change glyph height in pixels
-SIZE = 100
-# ... (see full script in project history)
-EOF
-```
