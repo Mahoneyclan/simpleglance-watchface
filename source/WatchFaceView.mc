@@ -15,14 +15,35 @@ class WatchFaceView extends WatchUi.WatchFace {
 
     private var _screenWidth  as Number = 260;
     private var _centerX      as Number = 130;
+    private var _font         as Graphics.FontReference or Null = null;
+
+    // Cached once — outline offsets for the frosted-glass effect
+    private var _offsets as Array<Array<Number>> = [
+        [-3,-3],[-2,-3],[-1,-3],[0,-3],[1,-3],[2,-3],[3,-3],
+        [-3,-2],                                     [3,-2],
+        [-3,-1],                                     [3,-1],
+        [-3, 0],                                     [3, 0],
+        [-3, 1],                                     [3, 1],
+        [-3, 2],                                     [3, 2],
+        [-3, 3],[-2, 3],[-1, 3],[0, 3],[1, 3],[2, 3],[3, 3],
+        [-2,-2],[-1,-2],[0,-2],[1,-2],[2,-2],
+        [-2,-1],                    [2,-1],
+        [-2, 0],                    [2, 0],
+        [-2, 1],                    [2, 1],
+        [-2, 2],[-1, 2],[0, 2],[1, 2],[2, 2],
+        [-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]
+    ];
 
     function initialize() {
         WatchFace.initialize();
     }
 
     function onLayout(dc as Dc) as Void {
-        _screenWidth  = dc.getWidth();
-        _centerX      = _screenWidth  / 2;
+        _screenWidth = dc.getWidth();
+        _centerX     = _screenWidth / 2;
+        // Load font once here instead of every second in drawTime
+        var fontRez = DARK_MODE ? Rez.Fonts.TimeFont : Rez.Fonts.TimeFontLight;
+        _font = WatchUi.loadResource(fontRez) as Graphics.FontReference;
     }
 
     function onShow() as Void {
@@ -36,24 +57,38 @@ class WatchFaceView extends WatchUi.WatchFace {
         drawTopIcons(dc);
         drawDate(dc);
         drawTime(dc);
+        drawDayNightIcon(dc);
         drawBlocks(dc);
     }
 
-    // Top row: Moon/Sun | Bluetooth | Battery — tight to top
+    // Top row: Bluetooth | Battery (centred, now moon/sun has moved below time)
     private function drawTopIcons(dc as Dc) as Void {
         var y        = 20;
         var settings = System.getDeviceSettings();
         var stats    = System.getSystemStats();
-        var hour     = System.getClockTime().hour;
 
-        if (hour >= 12) {
-            drawMoonIcon(dc, _centerX - 38, y);
-        } else {
-            drawSunIcon(dc, _centerX - 38, y);
+        drawBtIcon(dc, _centerX - 20, y, settings.phoneConnected);
+        drawBatteryGraphic(dc, _centerX + 20, y, stats.battery.toNumber());
+
+        // Days of charge remaining — drawn to the right of the battery graphic
+        if (stats.batteryInDays != null) {
+            var days = (stats.batteryInDays as Float).toNumber();
+            var label = days.toString() + "d";
+            var fg = DARK_MODE ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
+            dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(_centerX + 34, y, Graphics.FONT_XTINY, label,
+                Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
         }
+    }
 
-        drawBtIcon(dc, _centerX, y, settings.phoneConnected);
-        drawBatteryGraphic(dc, _centerX + 38, y, stats.battery.toNumber());
+    // Moon or Sun icon centred above the colon, within the time section
+    private function drawDayNightIcon(dc as Dc) as Void {
+        var hour = System.getClockTime().hour;
+        if (hour >= 12) {
+            drawMoonIcon(dc, _centerX, 82);
+        } else {
+            drawSunIcon(dc, _centerX, 82);
+        }
     }
 
     private function drawDate(dc as Dc) as Void {
@@ -68,7 +103,7 @@ class WatchFaceView extends WatchUi.WatchFace {
         ]);
         var fg = DARK_MODE ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
         dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(_centerX, 40, Graphics.FONT_SMALL, dateStr,
+        dc.drawText(_centerX, 40, Graphics.FONT_MEDIUM, dateStr,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
@@ -80,64 +115,69 @@ class WatchFaceView extends WatchUi.WatchFace {
         if (hours == 0) { hours = 12; }
         var hrStr  = hours.format("%02d");
         var minStr = clockTime.min.format("%02d");
-        var fontRez = DARK_MODE ? Rez.Fonts.TimeFont : Rez.Fonts.TimeFontLight;
-        var font    = WatchUi.loadResource(fontRez) as Graphics.FontReference;
-        var justR  = Graphics.TEXT_JUSTIFY_RIGHT  | Graphics.TEXT_JUSTIFY_VCENTER;
-        var justL  = Graphics.TEXT_JUSTIFY_LEFT   | Graphics.TEXT_JUSTIFY_VCENTER;
-        var y      = 118;
-        var gap    = 8;  // px each side of colon
-        var cx     = _centerX;
+        var font  = _font;
+        var justL = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
+        var y     = 118;
+        var cx    = _centerX;
 
-        // Dark: white outline, grey fill.  Light: black outline, dark-grey fill.
+        // Measure both strings so we can centre the whole group precisely
+        var hrDims  = dc.getTextDimensions(hrStr,  font);
+        var minDims = dc.getTextDimensions(minStr, font);
+        var hrW  = hrDims[0];
+        var minW = minDims[0];
+        var colonW = 20; // total pixel width reserved for the dot colon
+        var totalW = hrW + colonW + minW;
+        var startX = cx - totalW / 2;
+        var hrX    = startX;               // left edge of hour digits
+        var minX   = startX + hrW + colonW; // left edge of minute digits
+
+        // Fill colour interpolates from grey → white (dark) or dark-grey → black (light)
+        // based on steps progress toward daily goal.
+        var stepPct = 0.0f;
+        var actInfo = ActivityMonitor.getInfo();
+        if (actInfo != null && actInfo.steps != null && actInfo.stepGoal != null) {
+            var pct = (actInfo.steps as Number).toFloat() / (actInfo.stepGoal as Number).toFloat();
+            stepPct = pct < 0.0f ? 0.0f : (pct > 1.0f ? 1.0f : pct);
+        }
+
+        // Dark:  0xAAAAAA (170) → 0xFFFFFF (255)  channel = 170 + 85*p
+        // Light: 0x555555 (85)  → 0x000000 (0)    channel = 85  - 85*p
         var outlineCol = DARK_MODE ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
-        var fillCol    = DARK_MODE ? 0xAAAAAA             : 0x555555;
+        var ch = DARK_MODE
+            ? (170 + (85.0f * stepPct).toNumber())
+            : (85  - (85.0f * stepPct).toNumber());
+        var fillCol = (ch * 65536) + (ch * 256) + ch;
 
-        // Outline offsets — 3px hollow border
-        var offsets = [
-            [-3,-3],[-2,-3],[-1,-3],[0,-3],[1,-3],[2,-3],[3,-3],
-            [-3,-2],                                     [3,-2],
-            [-3,-1],                                     [3,-1],
-            [-3, 0],                                     [3, 0],
-            [-3, 1],                                     [3, 1],
-            [-3, 2],                                     [3, 2],
-            [-3, 3],[-2, 3],[-1, 3],[0, 3],[1, 3],[2, 3],[3, 3],
-            [-2,-2],[-1,-2],[0,-2],[1,-2],[2,-2],
-            [-2,-1],                    [2,-1],
-            [-2, 0],                    [2, 0],
-            [-2, 1],                    [2, 1],
-            [-2, 2],[-1, 2],[0, 2],[1, 2],[2, 2],
-            [-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]
-        ];
-
-        // Outline pass
+        // Outline pass — uses cached _offsets array
         dc.setColor(outlineCol, Graphics.COLOR_TRANSPARENT);
-        for (var i = 0; i < offsets.size(); i++) {
-            var dx = offsets[i][0];
-            var dy = offsets[i][1];
-            dc.drawText(cx - gap + dx, y + dy, font, hrStr,  justR);
-            dc.drawText(cx + gap + dx, y + dy, font, minStr, justL);
+        for (var i = 0; i < _offsets.size(); i++) {
+            var dx = _offsets[i][0];
+            var dy = _offsets[i][1];
+            dc.drawText(hrX  + dx, y + dy, font, hrStr,  justL);
+            dc.drawText(minX + dx, y + dy, font, minStr, justL);
         }
 
         // Fill pass
         dc.setColor(fillCol, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx - gap, y, font, hrStr,  justR);
-        dc.drawText(cx + gap, y, font, minStr, justL);
+        dc.drawText(hrX,  y, font, hrStr,  justL);
+        dc.drawText(minX, y, font, minStr, justL);
 
-        // Small colon: two dots centred on cx, offset ±10px from midline
+        // Small colon: two dots centred between the two groups
+        var dotX  = startX + hrW + colonW / 2;
         var dotR  = 2;
         var dotY1 = y - 10;
         var dotY2 = y + 10;
 
         dc.setColor(outlineCol, Graphics.COLOR_TRANSPARENT);
-        for (var i = 0; i < offsets.size(); i++) {
-            var dx = offsets[i][0];
-            var dy = offsets[i][1];
-            dc.fillCircle(cx + dx, dotY1 + dy, dotR);
-            dc.fillCircle(cx + dx, dotY2 + dy, dotR);
+        for (var i = 0; i < _offsets.size(); i++) {
+            var dx = _offsets[i][0];
+            var dy = _offsets[i][1];
+            dc.fillCircle(dotX + dx, dotY1 + dy, dotR);
+            dc.fillCircle(dotX + dx, dotY2 + dy, dotR);
         }
         dc.setColor(fillCol, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(cx, dotY1, dotR);
-        dc.fillCircle(cx, dotY2, dotR);
+        dc.fillCircle(dotX, dotY1, dotR);
+        dc.fillCircle(dotX, dotY2, dotR);
     }
 
     // Two bottom fields: Steps (left) | Floors (right)
