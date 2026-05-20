@@ -22,7 +22,6 @@ A clean digital watch face for the Garmin fenix 6 Pro with live weather.
 - **Battery** — colour-coded: green >50%, orange 10–50%, red <10%
 - **Weather** — current temperature shown in the centre bottom block, refreshed in the background via Open-Meteo (no API key needed)
 - **Bottom blocks** — Steps (left) · Temperature in °C (centre) · Floors climbed (right)
-- **Glance view** — compact time + temperature shown when browsing watch faces
 - **Theme** — dark (white on black) or light/positive (black on white), toggled by one constant
 
 ## Supported Devices
@@ -41,7 +40,6 @@ Temperature is fetched from [Open-Meteo](https://open-meteo.com) — a free, ope
 - A background service fetches fresh weather on a configurable interval (default: every 30 minutes)
 - GPS coordinates are cached from the last known fix, so weather refreshes even when the watch face is not on screen
 - The centre bottom block shows your current temperature: GPS location preferred, falls back to your configured home location
-- The glance view also shows the current temperature
 
 ### Settings
 
@@ -75,13 +73,11 @@ const DARK_MODE = false;  // black text on white (positive/paper screen)
 
 ## Architecture
 
-**WatchFaceApp.mc** — App entry point. Starts the background weather timer (`Background.registerForTemporalEvent`), receives background data via `onBackgroundData()`, writes it to persistent Storage, and serves the glance view and background service delegate to the OS.
+**WatchFaceApp.mc** — App entry point. Starts the background weather timer (`Background.registerForTemporalEvent`), receives background data via `onBackgroundData()`, writes it to persistent Storage, and serves the background service delegate to the OS.
 
 **WatchFaceBackground.mc** — Runs on the background timer (no UI, memory-restricted). Fetches current weather from Open-Meteo for the home location and the cached GPS location. Passes a compact array to `WatchFaceApp.onBackgroundData()` via `Background.exit()`. Ported from the SimpleGlance Weather Widget's `BackgroundService.mc`.
 
 **WatchFaceView.mc** — Main watch face UI. Reads weather from Storage on each draw (lightweight dictionary lookup). Also fires a one-shot foreground fetch on first load when no cached data exists. Draws all UI elements: icons, date, custom-font time, and the three bottom data blocks (steps / temperature / floors).
-
-**WatchFaceGlanceView.mc** — Compact preview shown when browsing watch faces or in glance mode. Reads system time and cached weather from Storage. Displays time (left, large) and temperature (right, smaller). Modelled on `WeatherGlanceView.mc` from the weather widget.
 
 ## Prerequisites
 
@@ -157,8 +153,7 @@ Eject the device — the watch installs it on reboot.
 ├── source/
 │   ├── WatchFaceApp.mc               # App entry point, background scheduler
 │   ├── WatchFaceView.mc              # All drawing logic + foreground weather fetch
-│   ├── WatchFaceBackground.mc        # Background weather service (Open-Meteo)
-│   └── WatchFaceGlanceView.mc        # Compact glance view (time + temperature)
+│   └── WatchFaceBackground.mc        # Background weather service (Open-Meteo)
 ├── resources/
 │   ├── properties.xml                # Weather settings (home location, refresh rate)
 │   ├── drawables/

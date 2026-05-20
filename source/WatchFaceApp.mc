@@ -3,11 +3,12 @@
 // Owns the background weather schedule and routes background results
 // into persistent Storage for WatchFaceView to read on each screen draw.
 //
-// The three annotations below tell the compiler to include this class in all
-// three compilation targets:
+// Annotations tell the compiler which execution contexts need this class:
 //   (no annotation) = foreground watch face — getInitialView() is called
-//   :glance         = glance mode preview   — getGlanceView() is called
 //   :background     = background timer      — getServiceDelegate() / onBackgroundData() are called
+//
+// Note: glance view is NOT supported for watch faces on the fenix 6 Pro,
+// so the :glance annotation and getGlanceView() have been omitted.
 
 import Toybox.Application;
 import Toybox.Application.Storage;
@@ -16,7 +17,7 @@ import Toybox.Lang;
 import Toybox.Time;
 import Toybox.WatchUi;
 
-(:background, :glance)
+(:background)
 class WatchFaceApp extends Application.AppBase {
 
     function initialize() {
@@ -36,12 +37,6 @@ class WatchFaceApp extends Application.AppBase {
     // Return the main watch face view shown when the face is active.
     function getInitialView() as [Views] or [Views, InputDelegates] {
         return [new WatchFaceView()];
-    }
-
-    // Return the compact glance view shown when the user browses faces or
-    // the watch is in ambient/glance mode.
-    function getGlanceView() as [WatchUi.GlanceView] or [WatchUi.GlanceView, WatchUi.GlanceViewDelegate] or Null {
-        return [new WatchFaceGlanceView()];
     }
 
     // Tell the Garmin OS which class handles background timer events.
