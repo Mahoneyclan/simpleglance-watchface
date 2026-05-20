@@ -90,7 +90,7 @@ class WatchFaceView extends WatchUi.WatchFace {
         }
         if (field == FIELD_FLOORS) {
             if (actInfo.floorsClimbed == null) { return "--"; }
-            return (actInfo.floorsClimbed as Number).toString() + "fl";
+            return (actInfo.floorsClimbed as Number).toString() + " fl";
         }
         if (field == FIELD_ACTIVE_MIN) {
             if (actInfo.activeMinutesDay == null) { return "--"; }
