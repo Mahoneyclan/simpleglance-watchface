@@ -18,4 +18,8 @@ class WatchFaceApp extends Application.AppBase {
         return [new WatchFaceView()];
     }
 
+    function onSettingsChanged() as Void {
+        WatchUi.requestUpdate();
+    }
+
 }

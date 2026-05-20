@@ -1,4 +1,5 @@
 import Toybox.ActivityMonitor;
+import Toybox.Application;
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.System;
@@ -6,25 +7,27 @@ import Toybox.Time;
 import Toybox.Time.Gregorian;
 import Toybox.WatchUi;
 
-// ── Theme ─────────────────────────────────────────────────────────────────────
-// Set DARK_MODE = false for a white/positive screen (black numbers on white).
-const DARK_MODE = true;
+// ── Field identifiers — match listEntry values in settings.xml ────────────────
+const FIELD_NONE       = 0 as Number;
+const FIELD_STEPS      = 1 as Number;
+const FIELD_CALORIES   = 2 as Number;
+const FIELD_DISTANCE   = 3 as Number;
+const FIELD_FLOORS     = 4 as Number;
+const FIELD_ACTIVE_MIN = 5 as Number;
 // ─────────────────────────────────────────────────────────────────────────────
 
 class WatchFaceView extends WatchUi.WatchFace {
 
-    private var _screenWidth  as Number = 260;
-    private var _centerX      as Number = 130;
-    private var _font         as Graphics.FontReference or Null = null;
+    private var _screenWidth as Number = 260;
+    private var _centerX     as Number = 130;
+    private var _font        as Graphics.FontReference or Null = null;
 
-    // Outline offsets — 1px border (8 surrounding pixels).
-    // Thinner than the old 3px frosted-glass ring; gives a clean edge
-    // closer to the Apple SF Pro lock-screen style.
-    private var _offsets as Array<Array<Number>> = [
-        [-1,-1],[0,-1],[1,-1],
-        [-1, 0],       [1, 0],
-        [-1, 1],[0, 1],[1, 1]
-    ];
+    // Populated from Application.Properties on every onUpdate call.
+    private var _bgColor    as Number = 0x000000;
+    private var _hourColor  as Number = 0xFFFFFF;
+    private var _minColor   as Number = 0xFF8000;
+    private var _leftField  as Number = FIELD_STEPS;
+    private var _rightField as Number = FIELD_FLOORS;
 
     function initialize() {
         WatchFace.initialize();
@@ -33,234 +36,188 @@ class WatchFaceView extends WatchUi.WatchFace {
     function onLayout(dc as Dc) as Void {
         _screenWidth = dc.getWidth();
         _centerX     = _screenWidth / 2;
-        // Load font once here instead of every second in drawTime
-        var fontRez = DARK_MODE ? Rez.Fonts.TimeFont : Rez.Fonts.TimeFontLight;
-        _font = WatchUi.loadResource(fontRez) as Graphics.FontReference;
+        // White-glyph atlas — dc.setColor() tints it to any colour at draw time.
+        _font = WatchUi.loadResource(Rez.Fonts.TimeFont) as Graphics.FontReference;
     }
 
     function onShow() as Void {
     }
 
     function onUpdate(dc as Dc) as Void {
-        var bg = DARK_MODE ? Graphics.COLOR_BLACK : Graphics.COLOR_WHITE;
-        dc.setColor(bg, bg);
+        loadSettings();
+        dc.setColor(_bgColor, _bgColor);
         dc.clear();
-
-        drawTopIcons(dc);
         drawDate(dc);
         drawTime(dc);
-        drawDayNightIcon(dc);
-        drawBlocks(dc);
+        drawBottomBar(dc);
     }
 
-    // Top row: Bluetooth | Battery (centred, now moon/sun has moved below time)
-    private function drawTopIcons(dc as Dc) as Void {
-        var y        = 20;
-        var settings = System.getDeviceSettings();
-        var stats    = System.getSystemStats();
+    // Read all user-configurable values from Application.Properties.
+    private function loadSettings() as Void {
+        _bgColor    = Application.Properties.getValue("BgColor")    as Number;
+        _hourColor  = Application.Properties.getValue("HourColor")  as Number;
+        _minColor   = Application.Properties.getValue("MinColor")   as Number;
+        _leftField  = Application.Properties.getValue("LeftField")  as Number;
+        _rightField = Application.Properties.getValue("RightField") as Number;
+    }
 
-        drawBtIcon(dc, _centerX - 20, y, settings.phoneConnected);
-        drawBatteryGraphic(dc, _centerX + 20, y, stats.battery.toNumber());
+    // True when the given 0xRRGGBB colour is perceptually dark.
+    private function isDark(color as Number) as Boolean {
+        var r = (color >> 16) & 0xFF;
+        var g = (color >>  8) & 0xFF;
+        var b =  color        & 0xFF;
+        return (r * 299 + g * 587 + b * 114) < 128000;
+    }
 
-        // Days of charge remaining — drawn to the right of the battery graphic
-        if (stats.batteryInDays != null) {
-            var days = (stats.batteryInDays as Float).toNumber();
-            var label = days.toString() + "d";
-            var fg = DARK_MODE ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
-            dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(_centerX + 34, y, Graphics.FONT_XTINY, label,
-                Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+    // Returns a formatted string for the given FIELD_* constant.
+    private function fieldValue(field as Number, actInfo as ActivityMonitor.Info or Null) as String {
+        if (actInfo == null) { return "--"; }
+        if (field == FIELD_STEPS) {
+            if (actInfo.steps == null) { return "--"; }
+            var s = actInfo.steps as Number;
+            return s >= 1000
+                ? Lang.format("$1$k stp", [(s / 1000.0).format("%.1f")])
+                : s.toString() + " stp";
         }
-    }
-
-    // Moon or Sun icon centred above the colon, within the time section
-    private function drawDayNightIcon(dc as Dc) as Void {
-        var hour = System.getClockTime().hour;
-        if (hour >= 12) {
-            drawMoonIcon(dc, _centerX, 82);
-        } else {
-            drawSunIcon(dc, _centerX, 82);
+        if (field == FIELD_CALORIES) {
+            if (actInfo.calories == null) { return "--"; }
+            return (actInfo.calories as Number).toString() + "cal";
         }
+        if (field == FIELD_DISTANCE) {
+            if (actInfo.distance == null) { return "--"; }
+            var km = (actInfo.distance as Long).toFloat() / 100000.0;
+            return km.format("%.1f") + "km";
+        }
+        if (field == FIELD_FLOORS) {
+            if (actInfo.floorsClimbed == null) { return "--"; }
+            return (actInfo.floorsClimbed as Number).toString() + "fl";
+        }
+        if (field == FIELD_ACTIVE_MIN) {
+            if (actInfo.activeMinutesDay == null) { return "--"; }
+            return (actInfo.activeMinutesDay as ActivityMonitor.ActiveMinutes).total.toString() + "min";
+        }
+        return "--";
     }
 
+    // "SAT 20 MAY" — day-of-week, date number, month (no comma)
     private function drawDate(dc as Dc) as Void {
         var now    = Gregorian.info(Time.now(), Time.FORMAT_SHORT);
-        var days   = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        var days   = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+        var months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+                      "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
         var dateStr = Lang.format("$1$ $2$ $3$", [
             days[now.day_of_week - 1],
-            now.day.format("%02d"),
+            now.day.format("%d"),
             months[now.month - 1]
         ]);
-        var fg = DARK_MODE ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
+        var fg = isDark(_bgColor) ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
         dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(_centerX, 40, Graphics.FONT_MEDIUM, dateStr,
+        dc.drawText(_centerX, 35, Graphics.FONT_MEDIUM, dateStr,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
-    // Custom font time — frosted glass effect (outline + fill).
-    // Colon is drawn manually as two small dots so it doesn't dominate.
+    // Large two-tone time centred on screen.
+    // Hours (_hourColor) left of colon; minutes (_minColor) right of colon.
     private function drawTime(dc as Dc) as Void {
         var clockTime = System.getClockTime();
         var hours     = clockTime.hour % 12;
         if (hours == 0) { hours = 12; }
         var hrStr  = hours.format("%02d");
         var minStr = clockTime.min.format("%02d");
-        var font  = _font;
-        var justL = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
-        var y     = 122;
-        var cx    = _centerX;
+        var font   = _font;
+        var y      = 130;
+        var cx     = _centerX;
+        var justL  = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
 
-        // Measure both strings so we can centre the whole group precisely
-        var hrDims  = dc.getTextDimensions(hrStr,  font);
-        var minDims = dc.getTextDimensions(minStr, font);
-        var hrW  = hrDims[0];
-        var minW = minDims[0];
-        var colonW = 20; // total pixel width reserved for the dot colon
-        var totalW = hrW + colonW + minW;
-        var startX = cx - totalW / 2;
-        var hrX    = startX;               // left edge of hour digits
-        var minX   = startX + hrW + colonW; // left edge of minute digits
+        var hrW      = dc.getTextDimensions(hrStr, font)[0];
+        var minW     = dc.getTextDimensions(minStr, font)[0];
+        var colonGap = 12;
+        var totalW   = hrW + colonGap + minW;
+        var hrX      = cx - totalW / 2;
+        var minX     = hrX + hrW + colonGap;
+        var colonX   = hrX + hrW + colonGap / 2;
 
-        // Fill colour interpolates from grey → white (dark) or dark-grey → black (light)
-        // based on steps progress toward daily goal.
-        var stepPct = 0.0f;
-        var actInfo = ActivityMonitor.getInfo();
-        if (actInfo != null && actInfo.steps != null && actInfo.stepGoal != null) {
-            var pct = (actInfo.steps as Number).toFloat() / (actInfo.stepGoal as Number).toFloat();
-            stepPct = pct < 0.0f ? 0.0f : (pct > 1.0f ? 1.0f : pct);
-        }
+        var fg     = isDark(_bgColor) ? Graphics.COLOR_WHITE   : Graphics.COLOR_BLACK;
+        var dimCol = isDark(_bgColor) ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
 
-        // Dark:  0xAAAAAA (170) → 0xFFFFFF (255)  channel = 170 + 85*p
-        // Light: 0x555555 (85)  → 0x000000 (0)    channel = 85  - 85*p
-        var outlineCol = DARK_MODE ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
-        var ch = DARK_MODE
-            ? (170 + (85.0f * stepPct).toNumber())
-            : (85  - (85.0f * stepPct).toNumber());
-        var fillCol = (ch * 65536) + (ch * 256) + ch;
+        // Hours
+        dc.setColor(_hourColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(hrX, y, font, hrStr, justL);
 
-        // Outline pass — uses cached _offsets array
-        dc.setColor(outlineCol, Graphics.COLOR_TRANSPARENT);
-        for (var i = 0; i < _offsets.size(); i++) {
-            var dx = _offsets[i][0];
-            var dy = _offsets[i][1];
-            dc.drawText(hrX  + dx, y + dy, font, hrStr,  justL);
-            dc.drawText(minX + dx, y + dy, font, minStr, justL);
-        }
-
-        // Fill pass
-        dc.setColor(fillCol, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(hrX,  y, font, hrStr,  justL);
+        // Minutes
+        dc.setColor(_minColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(minX, y, font, minStr, justL);
 
-        // Small colon: two dots centred between the two groups
-        var dotX  = startX + hrW + colonW / 2;
-        var dotR  = 2;
-        var dotY1 = y - 10;
-        var dotY2 = y + 10;
+        // Colon — two filled dots, same colour as hours
+        dc.setColor(_hourColor, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(colonX, y - 20, 7);
+        dc.fillCircle(colonX, y + 20, 7);
 
-        dc.setColor(outlineCol, Graphics.COLOR_TRANSPARENT);
-        for (var i = 0; i < _offsets.size(); i++) {
-            var dx = _offsets[i][0];
-            var dy = _offsets[i][1];
-            dc.fillCircle(dotX + dx, dotY1 + dy, dotR);
-            dc.fillCircle(dotX + dx, dotY2 + dy, dotR);
-        }
-        dc.setColor(fillCol, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(dotX, dotY1, dotR);
-        dc.fillCircle(dotX, dotY2, dotR);
-    }
-
-    // Two bottom fields: Steps (left) | Notifications (right)
-    private function drawBlocks(dc as Dc) as Void {
-        var actInfo  = ActivityMonitor.getInfo();
-        var stepsVal = "--" as String;
-        if (actInfo != null && actInfo.steps != null) {
-            var v = actInfo.steps as Number;
-            stepsVal = v >= 1000
-                ? Lang.format("$1$k", [(v / 1000.0).format("%.1f")])
-                : v.toString();
-        }
-
-        // Unread notification count from the connected phone
+        // ── Left side: notification (top) | divider | BT (bottom) ────────────
         var settings   = System.getDeviceSettings();
+        var leftX      = 22;
         var notifCount = (settings.notificationCount != null)
-            ? (settings.notificationCount as Number)
-            : 0;
-        var notifVal   = notifCount.toString();
+            ? (settings.notificationCount as Number) : 0;
 
-        var y       = 213;
-        var leftX   = _centerX / 2;
-        var rightX  = _centerX + _centerX / 2;
-        var justify = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
-        var fg      = DARK_MODE ? Graphics.COLOR_WHITE   : Graphics.COLOR_BLACK;
-        var labelFg = DARK_MODE ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
-
-        // Steps
-        dc.setColor(labelFg, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(leftX, y - 10, Graphics.FONT_XTINY, "STEPS", justify);
+        drawBellIcon(dc, leftX, y - 26);
         dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(leftX, y + 10, Graphics.FONT_SMALL, stepsVal, justify);
+        dc.drawText(leftX, y - 11, Graphics.FONT_XTINY, notifCount.toString(),
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        // Divider
-        dc.setColor(labelFg, Graphics.COLOR_TRANSPARENT);
-        dc.drawLine(_centerX, y - 18, _centerX, y + 18);
+        dc.setColor(dimCol, Graphics.COLOR_TRANSPARENT);
+        dc.drawLine(leftX - 7, y + 2, leftX + 7, y + 2);
 
-        // Notifications — bell icon above the count number
-        drawBellIcon(dc, rightX, y - 10);
+        drawBtIcon(dc, leftX, y + 17, settings.phoneConnected);
+
+        // ── Right side: battery icon + percentage ─────────────────────────────
+        var rightX  = _screenWidth - 22;
+        var stats   = System.getSystemStats();
+        var battPct = stats.battery.toNumber();
+        var battCol = battPct < 10
+            ? Graphics.COLOR_RED
+            : (battPct <= 50 ? Graphics.COLOR_ORANGE : Graphics.COLOR_GREEN);
+        drawBatteryIcon(dc, rightX, y - 12, battPct, battCol);
         dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(rightX, y + 10, Graphics.FONT_SMALL, notifVal, justify);
+        dc.drawText(rightX, y + 8, Graphics.FONT_XTINY, battPct.toString() + "%",
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
-    // Small bell icon: dome (arc), body rectangle, wide rim, clapper dot.
-    private function drawBellIcon(dc as Dc, cx as Number, cy as Number) as Void {
-        var fg = DARK_MODE ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
-        var bg = DARK_MODE ? Graphics.COLOR_BLACK : Graphics.COLOR_WHITE;
+    // Single data row below the time digits, driven by LeftField / RightField settings.
+    private function drawBottomBar(dc as Dc) as Void {
+        var actInfo = ActivityMonitor.getInfo();
+        var fg    = isDark(_bgColor) ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
+        var justC = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
 
-        // Dome — draw a filled circle then erase its lower half to leave an arch
+        var l = _leftField  != FIELD_NONE ? fieldValue(_leftField,  actInfo) : "";
+        var r = _rightField != FIELD_NONE ? fieldValue(_rightField, actInfo) : "";
+        var text = (l.length() > 0 && r.length() > 0) ? l + " • " + r
+                 : (l.length() > 0)                   ? l
+                 : r;
+
+        if (text.length() > 0) {
+            dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(_centerX, 223, Graphics.FONT_SMALL, text, justC);
+        }
+    }
+
+    // ── Icon helpers ──────────────────────────────────────────────────────────
+
+    // Bell: dome arc + body + wide rim + clapper dot
+    private function drawBellIcon(dc as Dc, cx as Number, cy as Number) as Void {
+        var fg = isDark(_bgColor) ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
         dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
         dc.fillCircle(cx, cy - 2, 5);
-        dc.setColor(bg, Graphics.COLOR_TRANSPARENT);
-        dc.fillRectangle(cx - 6, cy - 2, 12, 6);   // erase lower half of circle
-
-        // Body — rectangle below the arch
+        dc.setColor(_bgColor, Graphics.COLOR_TRANSPARENT);
+        dc.fillRectangle(cx - 6, cy - 2, 12, 6);
         dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
         dc.fillRectangle(cx - 4, cy - 2, 8, 5);
-
-        // Rim — wider than the body, sits at the bottom of the body
         dc.fillRectangle(cx - 6, cy + 3, 12, 2);
-
-        // Clapper — small dot below the rim
         dc.fillCircle(cx, cy + 7, 2);
     }
 
-    // ── Top icon helpers ──────────────────────────────────────────────────────
-
-    private function drawMoonIcon(dc as Dc, cx as Number, cy as Number) as Void {
-        var fg = DARK_MODE ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
-        var bg = DARK_MODE ? Graphics.COLOR_BLACK : Graphics.COLOR_WHITE;
-        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(cx, cy, 6);
-        dc.setColor(bg, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(cx + 3, cy - 2, 5);
-    }
-
-    private function drawSunIcon(dc as Dc, cx as Number, cy as Number) as Void {
-        var fg = DARK_MODE ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
-        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(cx, cy, 4);
-        var ix = [ 0,  3,  5,  3,  0, -3, -5, -3];
-        var iy = [-5, -3,  0,  3,  5,  3,  0, -3];
-        var ox = [ 0,  5,  8,  5,  0, -5, -8, -5];
-        var oy = [-8, -5,  0,  5,  8,  5,  0, -5];
-        for (var i = 0; i < 8; i++) {
-            dc.drawLine(cx + ix[i], cy + iy[i], cx + ox[i], cy + oy[i]);
-        }
-    }
-
+    // Bluetooth symbol — blue when connected, dim when not
     private function drawBtIcon(dc as Dc, cx as Number, cy as Number, connected as Boolean) as Void {
-        var disconnectedCol = DARK_MODE ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
+        var disconnectedCol = isDark(_bgColor) ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
         var color = connected ? Graphics.COLOR_BLUE : disconnectedCol;
         dc.setColor(color, Graphics.COLOR_TRANSPARENT);
         dc.drawLine(cx, cy - 6, cx, cy + 6);
@@ -270,19 +227,20 @@ class WatchFaceView extends WatchUi.WatchFace {
         dc.drawLine(cx + 4, cy + 3, cx, cy + 6);
     }
 
-    private function drawBatteryGraphic(dc as Dc, cx as Number, cy as Number, pct as Number) as Void {
-        var bw = 18;
-        var bh = 8;
-        var x  = cx - bw / 2;
-        var y  = cy - bh / 2;
-        var col = pct < 10
-            ? Graphics.COLOR_RED
-            : pct <= 50 ? Graphics.COLOR_ORANGE : Graphics.COLOR_GREEN;
-        dc.setColor(col, Graphics.COLOR_TRANSPARENT);
-        dc.drawRectangle(x, y, bw, bh);
-        dc.fillRectangle(x + bw, y + 2, 2, bh - 4);
-        var fillW = ((bw - 4) * pct / 100).toNumber();
-        dc.fillRectangle(x + 2, y + 2, fillW, bh - 4);
+    // Small battery outline + proportional fill + terminal nub, colour-coded.
+    private function drawBatteryIcon(dc as Dc, cx as Number, cy as Number, pct as Number, color as Number) as Void {
+        var w  = 14;
+        var h  = 8;
+        var nw = 3;
+        var nh = 4;
+        var x  = cx - w / 2;
+        var y  = cy - h / 2;
+        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        dc.drawRectangle(x, y, w, h);
+        dc.fillRectangle(x + w, y + (h - nh) / 2, nw, nh);
+        var fillW = (w - 2) * pct / 100;
+        if (fillW < 1) { fillW = 1; }
+        dc.fillRectangle(x + 1, y + 1, fillW, h - 2);
     }
 
     function onHide() as Void {

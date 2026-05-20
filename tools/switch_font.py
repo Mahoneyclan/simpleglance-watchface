@@ -14,7 +14,7 @@ import sys, os, subprocess
 from PIL import ImageFont, ImageDraw, Image
 
 # ── Change this to try a different font ───────────────────────────────────────
-ACTIVE_FONT = "hv_thin"
+ACTIVE_FONT = "din"
 # ─────────────────────────────────────────────────────────────────────────────
 
 TOOLS_DIR   = os.path.dirname(os.path.abspath(__file__))
@@ -44,13 +44,13 @@ PRESETS = {
         "path":  os.path.join(TOOLS_DIR, "fonts/Oswald-Bold.ttf"),
         "name":  "Oswald Bold",
         "index": 0,
-        "width": 0.78,
+        "width": 0.75,  # slightly condensed so two digits fit in half the 260px screen
     },
     "din":      {
         "path":  "/System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf",
         "name":  "DIN Condensed Bold",
         "index": 0,
-        "width": 0.78,
+        "width": 0.62,  # reduce to narrow digits; raise toward 0.78 to widen
     },
     "arial":    {
         "path":  "/System/Library/Fonts/Supplemental/Arial Narrow Bold.ttf",
@@ -78,9 +78,12 @@ PRESETS = {
     },
 }
 
-DIGITS  = "0123456789"
-CAP_H   = 110   # target capital-height in pixels
-PAD     = 2     # padding around each glyph cell
+DIGITS     = "0123456789"
+CAP_H      = 145   # target capital-height in pixels (increase for larger digits)
+PAD        = 0     # padding around each glyph cell (0 = digits touch, 1 = 2px gap)
+
+ICON_GLYPH = "Æ"  # codepoint 0xC6 = "steps" icon in garmin-connect-icons.ttf
+ICON_H     = 18        # target glyph height for the steps icon (px)
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -118,7 +121,7 @@ def write_fnt(path, png_name, chars, face_name, pt, pad, line_h, base, atlas_w, 
         f.write(f'info face="{face_name}" size={pt} bold=1 italic=0 charset="" unicode=1 stretchH=100 smooth=1 aa=1 padding={pad},{pad},{pad},{pad} spacing=1,1 outline=0\n')
         f.write(f'common lineHeight={line_h} base={base} scaleW={atlas_w} scaleH={atlas_h} pages=1 packed=0 alphaChnl=1 redChnl=0 greenChnl=0 blueChnl=0\n')
         f.write(f'page id=0 file="{png_name}"\n')
-        f.write(f'chars count={len(DIGITS)}\n')
+        f.write(f'chars count={len(chars)}\n')
         for g in chars:
             f.write(f"char id={g['id']}   x={g['x']} y={g['y']} width={g['width']} height={g['height']} xoffset={g['xoffset']} yoffset={g['yoffset']} xadvance={g['xadvance']} page=0 chnl=15\n")
         f.write("kernings count=0\n")
@@ -168,6 +171,58 @@ def generate(preset_key):
 
     print(f"  Atlases written → resources/fonts/")
 
+def gen_icons():
+    """Generate a tiny font atlas containing just the steps icon glyph."""
+    path = os.path.join(TOOLS_DIR, "fonts/garmin-connect-icons.ttf")
+    if not os.path.exists(path):
+        print(f"ERROR: {path} not found.")
+        print("  Download garmin-connect-icons.ttf from https://github.com/acb09/garmin-iconfonts")
+        return
+
+    # Find the smallest point size that makes the icon at least ICON_H px tall.
+    # We measure the actual icon glyph (not "0") since this is an icon font.
+    font = None
+    pt_used = 0
+    for pt in range(10, 400):
+        f = ImageFont.truetype(path, pt)
+        bb = f.getbbox(ICON_GLYPH)
+        if bb[3] - bb[1] >= ICON_H:
+            font, pt_used = f, pt
+            break
+    if font is None:
+        raise RuntimeError(f"Could not reach {ICON_H}px height for icon glyph")
+    print(f"Icon font loaded at pt={pt_used}")
+
+    bb      = font.getbbox(ICON_GLYPH)
+    glyph_w = bb[2] - bb[0]
+    glyph_h = bb[3] - bb[1]
+    xoff    = -bb[0]
+    yoff    = -bb[1]
+    cell_w  = glyph_w + PAD * 2
+    line_h  = glyph_h + PAD * 2
+    base    = glyph_h + PAD
+    atlas_w = next_pow2(cell_w)
+    atlas_h = next_pow2(line_h)
+    print(f"  glyph={glyph_w}x{glyph_h}  atlas={atlas_w}x{atlas_h}")
+
+    chars = [{
+        "id": ord(ICON_GLYPH), "x": 0, "y": 0,
+        "width": cell_w, "height": atlas_h,
+        "xoffset": 0, "yoffset": 0, "xadvance": cell_w,
+    }]
+
+    # Dark atlas (white glyph — used in DARK_MODE)
+    for color, suffix in [((255, 255, 255, 255), ""), ((0, 0, 0, 255), "_light")]:
+        atlas = Image.new("RGBA", (atlas_w, atlas_h), (0, 0, 0, 0))
+        ImageDraw.Draw(atlas).text((PAD + xoff, PAD + yoff), ICON_GLYPH, font=font, fill=color)
+        png_name = f"icon_font{suffix}_0.png"
+        atlas.save(os.path.join(FONTS_DIR, png_name))
+        write_fnt(
+            os.path.join(FONTS_DIR, f"icon_font{suffix}.fnt"),
+            png_name, chars, "Garmin Icons", pt_used, PAD, line_h, base, atlas_w, atlas_h
+        )
+    print("  Icon atlases written → resources/fonts/")
+
 def build_and_run():
     jar = os.path.join(SDK, "bin/monkeybrains.jar")
     prg = os.path.join(PROJECT_DIR, "bin/garminwatchface.prg")
@@ -202,6 +257,12 @@ if __name__ == "__main__":
         for k, v in PRESETS.items():
             exists = "✓" if os.path.exists(v["path"]) else "✗ MISSING"
             print(f"  {k:12s}  {v['name']:30s}  {exists}")
+        print(f"  {'icons':12s}  {'Garmin icon atlas (steps)':30s}  {'✓' if os.path.exists(os.path.join(TOOLS_DIR, 'fonts/garmin-connect-icons.ttf')) else '✗ MISSING'}")
+        sys.exit(0)
+
+    if arg == "icons":
+        gen_icons()
+        build_and_run()
         sys.exit(0)
 
     if arg not in PRESETS:

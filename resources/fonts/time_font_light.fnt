@@ -1,15 +1,15 @@
-info face="Oswald Bold Light" size=104 bold=1 italic=0 charset="" unicode=1 stretchH=100 smooth=1 aa=1 padding=2,2,2,2 spacing=1,1 outline=0
-common lineHeight=92 base=51 scaleW=512 scaleH=128 pages=1 packed=0 alphaChnl=1 redChnl=0 greenChnl=0 blueChnl=0
+info face="DIN Condensed Bold Light" size=200 bold=1 italic=0 charset="" unicode=1 stretchH=100 smooth=1 aa=1 padding=0,0,0,0 spacing=1,1 outline=0
+common lineHeight=146 base=148 scaleW=512 scaleH=256 pages=1 packed=0 alphaChnl=1 redChnl=0 greenChnl=0 blueChnl=0
 page id=0 file="time_font_light_0.png"
 chars count=10
-char id=48   x=0 y=0 width=51 height=128 xoffset=0 yoffset=0 xadvance=51 page=0 chnl=15
-char id=49   x=51 y=0 width=51 height=128 xoffset=0 yoffset=0 xadvance=51 page=0 chnl=15
-char id=50   x=102 y=0 width=51 height=128 xoffset=0 yoffset=0 xadvance=51 page=0 chnl=15
-char id=51   x=153 y=0 width=51 height=128 xoffset=0 yoffset=0 xadvance=51 page=0 chnl=15
-char id=52   x=204 y=0 width=51 height=128 xoffset=0 yoffset=0 xadvance=51 page=0 chnl=15
-char id=53   x=255 y=0 width=51 height=128 xoffset=0 yoffset=0 xadvance=51 page=0 chnl=15
-char id=54   x=306 y=0 width=51 height=128 xoffset=0 yoffset=0 xadvance=51 page=0 chnl=15
-char id=55   x=357 y=0 width=51 height=128 xoffset=0 yoffset=0 xadvance=51 page=0 chnl=15
-char id=56   x=408 y=0 width=51 height=128 xoffset=0 yoffset=0 xadvance=51 page=0 chnl=15
-char id=57   x=459 y=0 width=51 height=128 xoffset=0 yoffset=0 xadvance=51 page=0 chnl=15
+char id=48   x=0 y=0 width=45 height=256 xoffset=0 yoffset=0 xadvance=45 page=0 chnl=15
+char id=49   x=45 y=0 width=45 height=256 xoffset=0 yoffset=0 xadvance=45 page=0 chnl=15
+char id=50   x=90 y=0 width=45 height=256 xoffset=0 yoffset=0 xadvance=45 page=0 chnl=15
+char id=51   x=135 y=0 width=45 height=256 xoffset=0 yoffset=0 xadvance=45 page=0 chnl=15
+char id=52   x=180 y=0 width=45 height=256 xoffset=0 yoffset=0 xadvance=45 page=0 chnl=15
+char id=53   x=225 y=0 width=45 height=256 xoffset=0 yoffset=0 xadvance=45 page=0 chnl=15
+char id=54   x=270 y=0 width=45 height=256 xoffset=0 yoffset=0 xadvance=45 page=0 chnl=15
+char id=55   x=315 y=0 width=45 height=256 xoffset=0 yoffset=0 xadvance=45 page=0 chnl=15
+char id=56   x=360 y=0 width=45 height=256 xoffset=0 yoffset=0 xadvance=45 page=0 chnl=15
+char id=57   x=405 y=0 width=45 height=256 xoffset=0 yoffset=0 xadvance=45 page=0 chnl=15
 kernings count=0

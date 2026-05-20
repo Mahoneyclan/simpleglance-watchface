@@ -1,4 +1,30 @@
 <?xml version="1.0"?>
 <strings>
     <string id="AppName">SimpleGlance</string>
+
+    <!-- Setting titles -->
+    <string id="SettingBgColor">Background Color</string>
+    <string id="SettingHourColor">Hours Color</string>
+    <string id="SettingMinColor">Minutes Color</string>
+    <string id="SettingLeftField">Bottom Left Field</string>
+    <string id="SettingRightField">Bottom Right Field</string>
+
+    <!-- Color options -->
+    <string id="ColorBlack">Black</string>
+    <string id="ColorWhite">White</string>
+    <string id="ColorGrey">Grey</string>
+    <string id="ColorRed">Red</string>
+    <string id="ColorBlue">Blue</string>
+    <string id="ColorGreen">Green</string>
+    <string id="ColorOrange">Orange</string>
+    <string id="ColorPurple">Purple</string>
+    <string id="ColorPink">Pink</string>
+
+    <!-- Field options -->
+    <string id="FieldNone">None</string>
+    <string id="FieldSteps">Steps</string>
+    <string id="FieldCalories">Calories</string>
+    <string id="FieldDistance">Distance</string>
+    <string id="FieldFloors">Floors</string>
+    <string id="FieldActiveMin">Active Minutes</string>
 </strings>
