@@ -17,21 +17,13 @@ class WatchFaceView extends WatchUi.WatchFace {
     private var _centerX      as Number = 130;
     private var _font         as Graphics.FontReference or Null = null;
 
-    // Cached once — outline offsets for the frosted-glass effect
+    // Outline offsets — 1px border (8 surrounding pixels).
+    // Thinner than the old 3px frosted-glass ring; gives a clean edge
+    // closer to the Apple SF Pro lock-screen style.
     private var _offsets as Array<Array<Number>> = [
-        [-3,-3],[-2,-3],[-1,-3],[0,-3],[1,-3],[2,-3],[3,-3],
-        [-3,-2],                                     [3,-2],
-        [-3,-1],                                     [3,-1],
-        [-3, 0],                                     [3, 0],
-        [-3, 1],                                     [3, 1],
-        [-3, 2],                                     [3, 2],
-        [-3, 3],[-2, 3],[-1, 3],[0, 3],[1, 3],[2, 3],[3, 3],
-        [-2,-2],[-1,-2],[0,-2],[1,-2],[2,-2],
-        [-2,-1],                    [2,-1],
-        [-2, 0],                    [2, 0],
-        [-2, 1],                    [2, 1],
-        [-2, 2],[-1, 2],[0, 2],[1, 2],[2, 2],
-        [-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]
+        [-1,-1],[0,-1],[1,-1],
+        [-1, 0],       [1, 0],
+        [-1, 1],[0, 1],[1, 1]
     ];
 
     function initialize() {
@@ -117,7 +109,7 @@ class WatchFaceView extends WatchUi.WatchFace {
         var minStr = clockTime.min.format("%02d");
         var font  = _font;
         var justL = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
-        var y     = 118;
+        var y     = 122;
         var cx    = _centerX;
 
         // Measure both strings so we can centre the whole group precisely
@@ -180,25 +172,25 @@ class WatchFaceView extends WatchUi.WatchFace {
         dc.fillCircle(dotX, dotY2, dotR);
     }
 
-    // Two bottom fields: Steps (left) | Floors (right)
+    // Two bottom fields: Steps (left) | Notifications (right)
     private function drawBlocks(dc as Dc) as Void {
-        var actInfo   = ActivityMonitor.getInfo();
-        var stepsVal  = "--" as String;
-        var floorsVal = "--" as String;
-
-        if (actInfo != null) {
-            if (actInfo.steps != null) {
-                var v = actInfo.steps as Number;
-                stepsVal = v >= 1000
-                    ? Lang.format("$1$k", [(v / 1000.0).format("%.1f")])
-                    : v.toString();
-            }
-            if (actInfo.floorsClimbed != null) {
-                floorsVal = (actInfo.floorsClimbed as Number).toString();
-            }
+        var actInfo  = ActivityMonitor.getInfo();
+        var stepsVal = "--" as String;
+        if (actInfo != null && actInfo.steps != null) {
+            var v = actInfo.steps as Number;
+            stepsVal = v >= 1000
+                ? Lang.format("$1$k", [(v / 1000.0).format("%.1f")])
+                : v.toString();
         }
 
-        var y       = 205;
+        // Unread notification count from the connected phone
+        var settings   = System.getDeviceSettings();
+        var notifCount = (settings.notificationCount != null)
+            ? (settings.notificationCount as Number)
+            : 0;
+        var notifVal   = notifCount.toString();
+
+        var y       = 213;
         var leftX   = _centerX / 2;
         var rightX  = _centerX + _centerX / 2;
         var justify = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
@@ -215,11 +207,32 @@ class WatchFaceView extends WatchUi.WatchFace {
         dc.setColor(labelFg, Graphics.COLOR_TRANSPARENT);
         dc.drawLine(_centerX, y - 18, _centerX, y + 18);
 
-        // Floors
-        dc.setColor(labelFg, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(rightX, y - 10, Graphics.FONT_XTINY, "FLOORS", justify);
+        // Notifications — bell icon above the count number
+        drawBellIcon(dc, rightX, y - 10);
         dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(rightX, y + 10, Graphics.FONT_SMALL, floorsVal, justify);
+        dc.drawText(rightX, y + 10, Graphics.FONT_SMALL, notifVal, justify);
+    }
+
+    // Small bell icon: dome (arc), body rectangle, wide rim, clapper dot.
+    private function drawBellIcon(dc as Dc, cx as Number, cy as Number) as Void {
+        var fg = DARK_MODE ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
+        var bg = DARK_MODE ? Graphics.COLOR_BLACK : Graphics.COLOR_WHITE;
+
+        // Dome — draw a filled circle then erase its lower half to leave an arch
+        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(cx, cy - 2, 5);
+        dc.setColor(bg, Graphics.COLOR_TRANSPARENT);
+        dc.fillRectangle(cx - 6, cy - 2, 12, 6);   // erase lower half of circle
+
+        // Body — rectangle below the arch
+        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+        dc.fillRectangle(cx - 4, cy - 2, 8, 5);
+
+        // Rim — wider than the body, sits at the bottom of the body
+        dc.fillRectangle(cx - 6, cy + 3, 12, 2);
+
+        // Clapper — small dot below the rim
+        dc.fillCircle(cx, cy + 7, 2);
     }
 
     // ── Top icon helpers ──────────────────────────────────────────────────────

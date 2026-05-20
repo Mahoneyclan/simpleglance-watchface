@@ -14,7 +14,7 @@ import sys, os, subprocess
 from PIL import ImageFont, ImageDraw, Image
 
 # ── Change this to try a different font ───────────────────────────────────────
-ACTIVE_FONT = "bebas"
+ACTIVE_FONT = "hv_thin"
 # ─────────────────────────────────────────────────────────────────────────────
 
 TOOLS_DIR   = os.path.dirname(os.path.abspath(__file__))
@@ -22,38 +22,86 @@ PROJECT_DIR = os.path.dirname(TOOLS_DIR)
 FONTS_DIR   = os.path.join(PROJECT_DIR, "resources", "fonts")
 SDK         = "/Users/mahoney/Library/Application Support/Garmin/ConnectIQ/Sdks/connectiq-sdk-mac-8.1.1-2025-03-27-66dae750f"
 
+# Each preset is a dict with:
+#   path        — path to the TTF/OTF/TTC font file
+#   name        — human-readable name written into the .fnt descriptor
+#   index       — font index inside a TTC collection (0 for regular TTF/OTF)
+#   width       — horizontal squeeze factor (1.0 = natural width, 0.78 = condensed)
+#
+# TTC font indices for HelveticaNeue.ttc on macOS (may vary by OS version):
+#   0=Regular  2=Bold  4=Light  6=Thin/UltraLight
+#
+# SF Pro: download the "SF Pro" font package from https://developer.apple.com/fonts/
+# and install it. The Thin weight will then appear at /Library/Fonts/SF-Pro-Display-Thin.otf
 PRESETS = {
-    "din":      ("/System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf",  "DIN Condensed Bold"),
-    "arial":    ("/System/Library/Fonts/Supplemental/Arial Narrow Bold.ttf",   "Arial Narrow Bold"),
-    "bebas":    (os.path.join(TOOLS_DIR, "fonts/BebasNeue-Regular.ttf"),       "Bebas Neue"),
-    "oswald":   (os.path.join(TOOLS_DIR, "fonts/Oswald-Bold.ttf"),             "Oswald Bold"),
+    "bebas":    {
+        "path":  os.path.join(TOOLS_DIR, "fonts/BebasNeue-Regular.ttf"),
+        "name":  "Bebas Neue",
+        "index": 0,
+        "width": 0.78,
+    },
+    "oswald":   {
+        "path":  os.path.join(TOOLS_DIR, "fonts/Oswald-Bold.ttf"),
+        "name":  "Oswald Bold",
+        "index": 0,
+        "width": 0.78,
+    },
+    "din":      {
+        "path":  "/System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf",
+        "name":  "DIN Condensed Bold",
+        "index": 0,
+        "width": 0.78,
+    },
+    "arial":    {
+        "path":  "/System/Library/Fonts/Supplemental/Arial Narrow Bold.ttf",
+        "name":  "Arial Narrow Bold",
+        "index": 0,
+        "width": 0.78,
+    },
+    # ── Thin / Apple-style presets ─────────────────────────────────────────────
+    "hv_thin":  {
+        # Helvetica Neue Thin — built into every Mac, no download needed.
+        # Very close to SF Pro Display Ultralight in style.
+        "path":  "/System/Library/Fonts/HelveticaNeue.ttc",
+        "name":  "Helvetica Neue Thin",
+        "index": 6,   # index 6 = Thin/UltraLight in the TTC collection
+        "width": 0.95,
+    },
+    "sfpro":    {
+        # SF Pro Display Thin — Apple's exact lock-screen font.
+        # Download from https://developer.apple.com/fonts/ then install.
+        # After installing you will find the file at the path below.
+        "path":  "/Library/Fonts/SF-Pro-Display-Thin.otf",
+        "name":  "SF Pro Display Thin",
+        "index": 0,
+        "width": 0.95,
+    },
 }
 
-DIGITS      = "0123456789"
-CAP_H       = 88    # target capital-height in pixels
-WIDTH_SCALE = 0.78  # horizontal squeeze (1.0 = natural width, 0.75 = 25% narrower)
-PAD         = 2     # padding around each glyph cell
+DIGITS  = "0123456789"
+CAP_H   = 110   # target capital-height in pixels
+PAD     = 2     # padding around each glyph cell
 
 # ─────────────────────────────────────────────────────────────────────────────
 
-def load_at_capheight(path, target_h):
+def load_at_capheight(path, index, target_h):
+    """Find the smallest point size that produces glyphs at least target_h px tall."""
     for pt in range(10, 400):
-        f = ImageFont.truetype(path, pt)
+        f = ImageFont.truetype(path, pt, index=index)
         bb = f.getbbox("0")
         if bb[3] - bb[1] >= target_h:
             return f, pt
     raise RuntimeError(f"Could not reach {target_h}px height with {path}")
 
-def make_atlas(font, glyphs, cell_w, atlas_w, atlas_h, color):
+def make_atlas(font, glyphs, cell_w, atlas_w, atlas_h, color, width_scale):
     atlas = Image.new("RGBA", (atlas_w, atlas_h), (0, 0, 0, 0))
     chars = []
     x = 0
     for ch in DIGITS:
         g = glyphs[ch]
-        # Render glyph at full size into a temp image, then squeeze horizontally
         tmp = Image.new("RGBA", (g["w"] + PAD * 2, atlas_h), (0, 0, 0, 0))
         ImageDraw.Draw(tmp).text((PAD + g["xoff"], PAD + g["yoff"]), ch, font=font, fill=color)
-        squeezed_w = max(1, int(tmp.width * WIDTH_SCALE))
+        squeezed_w = max(1, int(tmp.width * width_scale))
         tmp = tmp.resize((squeezed_w, atlas_h), Image.LANCZOS)
         indent = (cell_w - squeezed_w) // 2
         atlas.paste(tmp, (x + indent, 0), tmp)
@@ -81,11 +129,15 @@ def next_pow2(n):
     return p
 
 def generate(preset_key):
-    path, name = PRESETS[preset_key]
-    print(f"Font: {name}  ({path})")
+    preset      = PRESETS[preset_key]
+    path        = preset["path"]
+    name        = preset["name"]
+    index       = preset["index"]
+    width_scale = preset["width"]
 
-    font, pt = load_at_capheight(path, CAP_H)
-    print(f"  pt={pt}")
+    print(f"Font: {name}  ({path})")
+    font, pt = load_at_capheight(path, index, CAP_H)
+    print(f"  pt={pt}  width_scale={width_scale}")
 
     glyphs = {}
     for ch in DIGITS:
@@ -93,28 +145,28 @@ def generate(preset_key):
         glyphs[ch] = {"w": bb[2]-bb[0], "h": bb[3]-bb[1], "xoff": -bb[0], "yoff": -bb[1]}
 
     widths = [g["w"] for g in glyphs.values()]
-    print(f"  digit widths: min={min(widths)} max={max(widths)} (1={glyphs['1']['w']}  0={glyphs['0']['w']})")
+    print(f"  digit widths: min={min(widths)} max={max(widths)}")
 
-    cell_w  = int((max(widths) + PAD * 2) * WIDTH_SCALE) + PAD * 2
+    cell_w  = int((max(widths) + PAD * 2) * width_scale) + PAD * 2
     line_h  = max(g["h"] for g in glyphs.values()) + PAD * 2
     base    = max(g["h"] + g["yoff"] for g in glyphs.values()) + PAD
     atlas_w = next_pow2(cell_w * len(DIGITS))
     atlas_h = next_pow2(line_h)
     print(f"  cell={cell_w}  atlas={atlas_w}x{atlas_h}")
 
-    # Dark atlas (white glyphs)
-    a, c = make_atlas(font, glyphs, cell_w, atlas_w, atlas_h, (255, 255, 255, 255))
+    # Dark atlas (white glyphs — used in DARK_MODE)
+    a, c = make_atlas(font, glyphs, cell_w, atlas_w, atlas_h, (255, 255, 255, 255), width_scale)
     a.save(os.path.join(FONTS_DIR, "time_font_0.png"))
     write_fnt(os.path.join(FONTS_DIR, "time_font.fnt"), "time_font_0.png",
               c, name, pt, PAD, line_h, base, atlas_w, atlas_h)
 
-    # Light atlas (black glyphs)
-    a, c = make_atlas(font, glyphs, cell_w, atlas_w, atlas_h, (0, 0, 0, 255))
+    # Light atlas (black glyphs — used when DARK_MODE = false)
+    a, c = make_atlas(font, glyphs, cell_w, atlas_w, atlas_h, (0, 0, 0, 255), width_scale)
     a.save(os.path.join(FONTS_DIR, "time_font_light_0.png"))
     write_fnt(os.path.join(FONTS_DIR, "time_font_light.fnt"), "time_font_light_0.png",
               c, f"{name} Light", pt, PAD, line_h, base, atlas_w, atlas_h)
 
-    print(f"  Atlas written → resources/fonts/")
+    print(f"  Atlases written → resources/fonts/")
 
 def build_and_run():
     jar = os.path.join(SDK, "bin/monkeybrains.jar")
@@ -147,9 +199,9 @@ if __name__ == "__main__":
 
     if arg == "list":
         print("Available font presets:")
-        for k, (p, n) in PRESETS.items():
-            exists = "✓" if os.path.exists(p) else "✗ MISSING"
-            print(f"  {k:12s}  {n}  {exists}")
+        for k, v in PRESETS.items():
+            exists = "✓" if os.path.exists(v["path"]) else "✗ MISSING"
+            print(f"  {k:12s}  {v['name']:30s}  {exists}")
         sys.exit(0)
 
     if arg not in PRESETS:
