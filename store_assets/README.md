@@ -5,7 +5,7 @@ This folder holds all images required for the Garmin Connect IQ store listing.
 ## Required files
 
 | File | Size | Purpose |
-|------|------|---------|
+| --- | --- | --- |
 | `icon_128x128.png` | 128 × 128 px | Small app icon (used in device app list) |
 | `icon_500x500.png` | 500 × 500 px | Store listing icon |
 | `cover_500x500.png` | 500 × 500 px | Store cover / hero tile |
