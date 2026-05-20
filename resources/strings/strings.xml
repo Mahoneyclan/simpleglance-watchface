@@ -8,6 +8,7 @@
     <string id="SettingMinColor">Minutes Color</string>
     <string id="SettingLeftField">Bottom Left Field</string>
     <string id="SettingRightField">Bottom Right Field</string>
+    <string id="SettingUse24h">24-Hour Time</string>
 
     <!-- Color options -->
     <string id="ColorBlack">Black</string>

@@ -64,4 +64,8 @@
         </settingConfig>
     </setting>
 
+    <setting propertyKey="@Properties.Use24h" title="@Strings.SettingUse24h">
+        <settingConfig type="boolean" />
+    </setting>
+
 </settings>

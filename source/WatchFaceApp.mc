@@ -4,6 +4,8 @@ import Toybox.WatchUi;
 
 class WatchFaceApp extends Application.AppBase {
 
+    private var _view as WatchFaceView or Null = null;
+
     function initialize() {
         AppBase.initialize();
     }
@@ -15,10 +17,14 @@ class WatchFaceApp extends Application.AppBase {
     }
 
     function getInitialView() as [Views] or [Views, InputDelegates] {
-        return [new WatchFaceView()];
+        _view = new WatchFaceView();
+        return [_view];
     }
 
     function onSettingsChanged() as Void {
+        if (_view != null) {
+            (_view as WatchFaceView).onSettingsChanged();
+        }
         WatchUi.requestUpdate();
     }
 

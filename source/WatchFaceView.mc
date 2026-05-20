@@ -22,12 +22,16 @@ class WatchFaceView extends WatchUi.WatchFace {
     private var _centerX     as Number = 130;
     private var _font        as Graphics.FontReference or Null = null;
 
-    // Populated from Application.Properties on every onUpdate call.
-    private var _bgColor    as Number = 0x000000;
-    private var _hourColor  as Number = 0xFFFFFF;
-    private var _minColor   as Number = 0xFF8000;
-    private var _leftField  as Number = FIELD_STEPS;
-    private var _rightField as Number = FIELD_FLOORS;
+    // Cached settings — updated in onShow() and onSettingsChanged() only,
+    // not on every onUpdate() call.
+    private var _bgColor    as Number  = 0x000000;
+    private var _hourColor  as Number  = 0xFFFFFF;
+    private var _minColor   as Number  = 0xFF8000;
+    private var _fgColor    as Number  = Graphics.COLOR_WHITE;
+    private var _dimColor   as Number  = Graphics.COLOR_DK_GRAY;
+    private var _leftField  as Number  = FIELD_STEPS;
+    private var _rightField as Number  = FIELD_FLOORS;
+    private var _use24h     as Boolean = false;
 
     function initialize() {
         WatchFace.initialize();
@@ -41,10 +45,15 @@ class WatchFaceView extends WatchUi.WatchFace {
     }
 
     function onShow() as Void {
+        loadSettings();
+    }
+
+    // Called by WatchFaceApp when the user changes settings in Garmin Connect.
+    function onSettingsChanged() as Void {
+        loadSettings();
     }
 
     function onUpdate(dc as Dc) as Void {
-        loadSettings();
         dc.setColor(_bgColor, _bgColor);
         dc.clear();
         drawDate(dc);
@@ -52,13 +61,18 @@ class WatchFaceView extends WatchUi.WatchFace {
         drawBottomBar(dc);
     }
 
-    // Read all user-configurable values from Application.Properties.
+    // Read and cache all user-configurable values from Application.Properties.
+    // Also pre-computes _fgColor and _dimColor so isDark() isn't called per frame.
     private function loadSettings() as Void {
         _bgColor    = Application.Properties.getValue("BgColor")    as Number;
         _hourColor  = Application.Properties.getValue("HourColor")  as Number;
         _minColor   = Application.Properties.getValue("MinColor")   as Number;
         _leftField  = Application.Properties.getValue("LeftField")  as Number;
         _rightField = Application.Properties.getValue("RightField") as Number;
+        _use24h     = Application.Properties.getValue("Use24h")     as Boolean;
+        var dark  = isDark(_bgColor);
+        _fgColor  = dark ? Graphics.COLOR_WHITE   : Graphics.COLOR_BLACK;
+        _dimColor = dark ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
     }
 
     // True when the given 0xRRGGBB colour is perceptually dark.
@@ -81,12 +95,12 @@ class WatchFaceView extends WatchUi.WatchFace {
         }
         if (field == FIELD_CALORIES) {
             if (actInfo.calories == null) { return "--"; }
-            return (actInfo.calories as Number).toString() + "cal";
+            return (actInfo.calories as Number).toString() + " cal";
         }
         if (field == FIELD_DISTANCE) {
             if (actInfo.distance == null) { return "--"; }
             var km = (actInfo.distance as Long).toFloat() / 100000.0;
-            return km.format("%.1f") + "km";
+            return km.format("%.1f") + " km";
         }
         if (field == FIELD_FLOORS) {
             if (actInfo.floorsClimbed == null) { return "--"; }
@@ -94,7 +108,7 @@ class WatchFaceView extends WatchUi.WatchFace {
         }
         if (field == FIELD_ACTIVE_MIN) {
             if (actInfo.activeMinutesDay == null) { return "--"; }
-            return (actInfo.activeMinutesDay as ActivityMonitor.ActiveMinutes).total.toString() + "min";
+            return (actInfo.activeMinutesDay as ActivityMonitor.ActiveMinutes).total.toString() + " min";
         }
         return "--";
     }
@@ -110,8 +124,7 @@ class WatchFaceView extends WatchUi.WatchFace {
             now.day.format("%d"),
             months[now.month - 1]
         ]);
-        var fg = isDark(_bgColor) ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
-        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(_centerX, 35, Graphics.FONT_MEDIUM, dateStr,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
@@ -120,8 +133,9 @@ class WatchFaceView extends WatchUi.WatchFace {
     // Hours (_hourColor) left of colon; minutes (_minColor) right of colon.
     private function drawTime(dc as Dc) as Void {
         var clockTime = System.getClockTime();
-        var hours     = clockTime.hour % 12;
-        if (hours == 0) { hours = 12; }
+        var hours = _use24h
+            ? clockTime.hour
+            : (clockTime.hour % 12 == 0 ? 12 : clockTime.hour % 12);
         var hrStr  = hours.format("%02d");
         var minStr = clockTime.min.format("%02d");
         var font   = _font;
@@ -137,9 +151,6 @@ class WatchFaceView extends WatchUi.WatchFace {
         var minX     = hrX + hrW + colonGap;
         var colonX   = hrX + hrW + colonGap / 2;
 
-        var fg     = isDark(_bgColor) ? Graphics.COLOR_WHITE   : Graphics.COLOR_BLACK;
-        var dimCol = isDark(_bgColor) ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
-
         // Hours
         dc.setColor(_hourColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(hrX, y, font, hrStr, justL);
@@ -153,23 +164,23 @@ class WatchFaceView extends WatchUi.WatchFace {
         dc.fillCircle(colonX, y - 20, 7);
         dc.fillCircle(colonX, y + 20, 7);
 
-        // ── Left side: notification (top) | divider | BT (bottom) ────────────
+        // ── Left: notification | divider | BT ────────────────────────────────
         var settings   = System.getDeviceSettings();
         var leftX      = 22;
         var notifCount = (settings.notificationCount != null)
             ? (settings.notificationCount as Number) : 0;
 
         drawBellIcon(dc, leftX, y - 26);
-        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(leftX, y - 11, Graphics.FONT_XTINY, notifCount.toString(),
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        dc.setColor(dimCol, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
         dc.drawLine(leftX - 7, y + 2, leftX + 7, y + 2);
 
         drawBtIcon(dc, leftX, y + 17, settings.phoneConnected);
 
-        // ── Right side: battery icon + percentage ─────────────────────────────
+        // ── Right: battery icon + percentage ─────────────────────────────────
         var rightX  = _screenWidth - 22;
         var stats   = System.getSystemStats();
         var battPct = stats.battery.toNumber();
@@ -177,7 +188,7 @@ class WatchFaceView extends WatchUi.WatchFace {
             ? Graphics.COLOR_RED
             : (battPct <= 50 ? Graphics.COLOR_ORANGE : Graphics.COLOR_GREEN);
         drawBatteryIcon(dc, rightX, y - 12, battPct, battCol);
-        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(rightX, y + 8, Graphics.FONT_XTINY, battPct.toString() + "%",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
@@ -185,8 +196,7 @@ class WatchFaceView extends WatchUi.WatchFace {
     // Single data row below the time digits, driven by LeftField / RightField settings.
     private function drawBottomBar(dc as Dc) as Void {
         var actInfo = ActivityMonitor.getInfo();
-        var fg    = isDark(_bgColor) ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
-        var justC = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        var justC   = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
 
         var l = _leftField  != FIELD_NONE ? fieldValue(_leftField,  actInfo) : "";
         var r = _rightField != FIELD_NONE ? fieldValue(_rightField, actInfo) : "";
@@ -195,31 +205,26 @@ class WatchFaceView extends WatchUi.WatchFace {
                  : r;
 
         if (text.length() > 0) {
-            dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
             dc.drawText(_centerX, 223, Graphics.FONT_SMALL, text, justC);
         }
     }
 
     // ── Icon helpers ──────────────────────────────────────────────────────────
 
-    // Bell: dome arc + body + wide rim + clapper dot
     private function drawBellIcon(dc as Dc, cx as Number, cy as Number) as Void {
-        var fg = isDark(_bgColor) ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
-        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
         dc.fillCircle(cx, cy - 2, 5);
         dc.setColor(_bgColor, Graphics.COLOR_TRANSPARENT);
         dc.fillRectangle(cx - 6, cy - 2, 12, 6);
-        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
         dc.fillRectangle(cx - 4, cy - 2, 8, 5);
         dc.fillRectangle(cx - 6, cy + 3, 12, 2);
         dc.fillCircle(cx, cy + 7, 2);
     }
 
-    // Bluetooth symbol — blue when connected, dim when not
     private function drawBtIcon(dc as Dc, cx as Number, cy as Number, connected as Boolean) as Void {
-        var disconnectedCol = isDark(_bgColor) ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
-        var color = connected ? Graphics.COLOR_BLUE : disconnectedCol;
-        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(connected ? Graphics.COLOR_BLUE : _dimColor, Graphics.COLOR_TRANSPARENT);
         dc.drawLine(cx, cy - 6, cx, cy + 6);
         dc.drawLine(cx, cy - 6, cx + 4, cy - 3);
         dc.drawLine(cx + 4, cy - 3, cx, cy);
@@ -227,7 +232,6 @@ class WatchFaceView extends WatchUi.WatchFace {
         dc.drawLine(cx + 4, cy + 3, cx, cy + 6);
     }
 
-    // Small battery outline + proportional fill + terminal nub, colour-coded.
     private function drawBatteryIcon(dc as Dc, cx as Number, cy as Number, pct as Number, color as Number) as Void {
         var w  = 14;
         var h  = 8;
@@ -247,6 +251,7 @@ class WatchFaceView extends WatchUi.WatchFace {
     }
 
     function onExitSleep() as Void {
+        WatchUi.requestUpdate();
     }
 
     function onEnterSleep() as Void {
