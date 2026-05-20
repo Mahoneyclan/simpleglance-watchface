@@ -7,6 +7,14 @@
         </iq:products>
         <iq:permissions>
             <iq:uses-permission id="SensorHistory"/>
+            <!-- Background: allows the watch face to run a timer-based service
+                 that fetches weather even when the face is not on screen -->
+            <iq:uses-permission id="Background"/>
+            <!-- Communications: required to make HTTP requests to Open-Meteo -->
+            <iq:uses-permission id="Communications"/>
+            <!-- Positioning: allows reading GPS coordinates via Position.getInfo()
+                 so the background service can fetch weather for your current location -->
+            <iq:uses-permission id="Positioning"/>
         </iq:permissions>
         <iq:languages>
             <iq:language>eng</iq:language>

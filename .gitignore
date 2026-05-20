@@ -21,5 +21,6 @@ developer_key.der
 
 # macOS
 .DS_Store
+**/.DS_Store
 .AppleDouble
 .LSOverride
