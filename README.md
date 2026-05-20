@@ -26,7 +26,7 @@ A clean, minimal digital watch face for the Garmin fenix 6 / fenix 6 Pro with fu
 All customisation is done in **Garmin Connect → Watch Faces → SimpleGlance → Settings** — no rebuild needed.
 
 | Setting | Options | Default |
-|---|---|---|
+| --- | --- | --- |
 | Background Color | Black, White, Red, Blue, Green, Orange, Purple, Pink, Grey | Black |
 | Hours Color | Same palette | White |
 | Minutes Color | Same palette | Orange |
@@ -39,7 +39,7 @@ All customisation is done in **Garmin Connect → Watch Faces → SimpleGlance �
 ## Supported Devices
 
 | Device | Screen | Status |
-|---|---|---|
+| --- | --- | --- |
 | Garmin fenix 6 Pro | 260 × 260 px | ✓ Tested |
 | Garmin fenix 6 | 260 × 260 px | ✓ Tested |
 | Garmin fenix 6S | 240 × 240 px | Listed |
@@ -50,7 +50,7 @@ All customisation is done in **Garmin Connect → Watch Faces → SimpleGlance �
 ## Screenshots
 
 | With watch | Face only |
-|---|---|
+| --- | --- |
 | ![With watch](store_assets/preview_face_with_watch_500x500.png) | ![Face](store_assets/preview_face_500x500.png) |
 
 ---
@@ -136,7 +136,7 @@ python3 tools/switch_font.py list       # show all presets and availability
 Key parameters in `switch_font.py`:
 
 | Parameter | Default | Effect |
-|---|---|---|
+| --- | --- | --- |
 | `CAP_H` | 145 | Digit height in pixels — increase for larger digits |
 | `PAD` | 0 | Padding around each glyph cell — raise to 1–2 to add inter-digit gap |
 | `width` (per preset) | 0.62 (DIN) | Horizontal squeeze factor — lower = narrower digits |
@@ -145,7 +145,7 @@ Key parameters in `switch_font.py`:
 
 ## Project Structure
 
-```
+```text
 ├── manifest.xml                       # App metadata, target devices, min API level
 ├── monkey.jungle                      # Build config
 ├── developer_key                      # DER signing key (not committed)
