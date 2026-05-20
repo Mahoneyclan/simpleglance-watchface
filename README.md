@@ -1,6 +1,6 @@
 # SimpleGlance Watchface — fenix 6 Pro
 
-A clean digital watch face for the Garmin fenix 6 Pro with live weather.
+A clean digital watch face for the Garmin fenix 6 Pro.
 
 > **Preview:** open `mockup.html` in your browser to see a pixel-accurate rendering.
 > After taking a screenshot, save it as `store_assets/preview_face_500x500.png` to embed it here.
@@ -10,8 +10,8 @@ A clean digital watch face for the Garmin fenix 6 Pro with live weather.
        Mon 09 Mar
          10 · 42
       ☀/🌙
-  STEPS  |  °C  |  FLOORS
-   8.2k  |  18° |    12
+    STEPS  |  FLOORS
+     8.2k  |    12
 ```
 
 ## Features
@@ -20,8 +20,7 @@ A clean digital watch face for the Garmin fenix 6 Pro with live weather.
 - **Date** — `DDD DD MMM` format (e.g. `Mon 09 Mar`)
 - **Top icons** — Moon/Sun (time of day), Bluetooth status, battery bar + days remaining
 - **Battery** — colour-coded: green >50%, orange 10–50%, red <10%
-- **Weather** — current temperature shown in the centre bottom block, refreshed in the background via Open-Meteo (no API key needed)
-- **Bottom blocks** — Steps (left) · Temperature in °C (centre) · Floors climbed (right)
+- **Bottom blocks** — Steps (left) and Floors climbed (right)
 - **Theme** — dark (white on black) or light/positive (black on white), toggled by one constant
 
 ## Supported Devices
@@ -32,27 +31,6 @@ A clean digital watch face for the Garmin fenix 6 Pro with live weather.
 | Garmin fenix 6 | 260 × 260 px | ✓ |
 
 The watch face targets the fenix 6 series (260 × 260 px circular display). Other devices with the same screen dimensions may work but are not officially supported.
-
-## Weather
-
-Temperature is fetched from [Open-Meteo](https://open-meteo.com) — a free, open-source API with no registration or API key required.
-
-- A background service fetches fresh weather on a configurable interval (default: every 30 minutes)
-- GPS coordinates are cached from the last known fix, so weather refreshes even when the watch face is not on screen
-- The centre bottom block shows your current temperature: GPS location preferred, falls back to your configured home location
-
-### Settings
-
-Change via **Garmin Connect app** → My Device → Watch Faces → SimpleGlance Watch Face → Settings.
-
-| Setting | Default | Options |
-|---------|---------|---------|
-| Weather Refresh Interval | 30 min | 15 / 30 / 60 min |
-| Home Location Name | Home | Any text (max 32 chars) |
-| Home Latitude | -27.3705 | Decimal degrees, e.g. `-27.3705` |
-| Home Longitude | 152.8691 | Decimal degrees, e.g. `152.8691` |
-
-To find your home coordinates: open [Google Maps](https://maps.google.com), right-click your home → **Copy coordinates**.
 
 ## Theme
 
@@ -73,11 +51,9 @@ const DARK_MODE = false;  // black text on white (positive/paper screen)
 
 ## Architecture
 
-**WatchFaceApp.mc** — App entry point. Starts the background weather timer (`Background.registerForTemporalEvent`), receives background data via `onBackgroundData()`, writes it to persistent Storage, and serves the background service delegate to the OS.
+**WatchFaceApp.mc** — App entry point. Returns the initial view to the Garmin OS.
 
-**WatchFaceBackground.mc** — Runs on the background timer (no UI, memory-restricted). Fetches current weather from Open-Meteo for the home location and the cached GPS location. Passes a compact array to `WatchFaceApp.onBackgroundData()` via `Background.exit()`. Ported from the SimpleGlance Weather Widget's `BackgroundService.mc`.
-
-**WatchFaceView.mc** — Main watch face UI. Reads weather from Storage on each draw (lightweight dictionary lookup). Also fires a one-shot foreground fetch on first load when no cached data exists. Draws all UI elements: icons, date, custom-font time, and the three bottom data blocks (steps / temperature / floors).
+**WatchFaceView.mc** — All drawing logic. Renders the top icons (Bluetooth, battery), date, custom-font time with frosted-glass effect, day/night icon, and the two bottom data blocks (steps and floors). The time fill colour shifts from grey to white as steps progress toward the daily goal.
 
 ## Prerequisites
 
@@ -151,11 +127,9 @@ Eject the device — the watch installs it on reboot.
 ├── mockup.html                       # Browser-based watch face preview
 ├── PRIVACY.md                        # Privacy policy for Connect IQ store
 ├── source/
-│   ├── WatchFaceApp.mc               # App entry point, background scheduler
-│   ├── WatchFaceView.mc              # All drawing logic + foreground weather fetch
-│   └── WatchFaceBackground.mc        # Background weather service (Open-Meteo)
+│   ├── WatchFaceApp.mc               # App entry point
+│   └── WatchFaceView.mc              # All drawing logic
 ├── resources/
-│   ├── properties.xml                # Weather settings (home location, refresh rate)
 │   ├── drawables/
 │   │   ├── drawables.xml             # Launcher icon declaration
 │   │   └── launcher_icon.png         # 40×40 launcher icon
@@ -184,17 +158,10 @@ Eject the device — the watch installs it on reboot.
 | Thing | Where |
 |---|---|
 | Theme (dark/light) | `const DARK_MODE` at top of `WatchFaceView.mc` |
-| Home weather location | Garmin Connect app → Settings, or default coords in `resources/properties.xml` |
-| Weather refresh rate | Garmin Connect app → Settings |
 | Font size | Regenerate atlases via `tools/switch_font.py`, update `resources/fonts/fonts.xml` |
 | Battery thresholds | `drawBatteryGraphic()` in `WatchFaceView.mc` |
-| Bottom block layout | `drawBlocks()` in `WatchFaceView.mc` |
-
-## Data Source
-
-Weather data provided by [Open-Meteo](https://open-meteo.com) — free, no API key required.
-
-See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
+| Date format | `drawDate()` in `WatchFaceView.mc` |
+| Bottom fields | `drawBlocks()` in `WatchFaceView.mc` |
 
 ## License
 
