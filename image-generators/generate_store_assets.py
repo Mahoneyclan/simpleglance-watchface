@@ -1,8 +1,6 @@
 """
 generate_store_assets.py
-Generates all Connect IQ store assets in one pass.
-
-Adapted from the SimpleGlance Weather Widget's generator.
+Generates Connect IQ store assets in one pass.
 
 Outputs written to store_assets/:
   cover_500x500.png
@@ -28,12 +26,12 @@ STORE = ROOT / "store_assets"
 
 # ── App text shown on cover / hero ────────────────────────────────────────────
 APP_TITLE    = "SimpleGlance"
-APP_SUBTITLE = "Watch Face"
-APP_META     = "Open-Meteo · No API key required"
-APP_FEAT     = "Time · Date · Steps · Weather"
+APP_SUBTITLE = "Fenix 6 Watch Face"
+APP_META     = "Customisable colours & data fields"
+APP_FEAT     = "Time  ·  Date  ·  Steps  ·  Battery  ·  Bluetooth"
 
 # ── Colour palette ────────────────────────────────────────────────────────────
-FONT    = "/System/Library/Fonts/SFNS.ttf"   # SF font — present on macOS
+FONT    = "/System/Library/Fonts/SFNS.ttf"
 BG_DARK = np.array([12, 17, 32], dtype=float)
 BG_RGB  = (12, 17, 32)
 WHITE   = (255, 255, 255)
@@ -45,13 +43,11 @@ DIMGREY = (90, 105, 120)
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
 def grad_color(x: int, g_start: int, g_end: int) -> np.ndarray:
-    """Interpolate between BG_DARK and pure white across a gradient band."""
     t = max(0.0, min(1.0, (x - g_start) / (g_end - g_start)))
     return (BG_DARK * (1 - t) + 255 * t).astype(np.uint8)
 
 
 def gradient_canvas(w: int, h: int, g_start: int, g_end: int) -> Image.Image:
-    """Create a left-to-right gradient canvas."""
     arr = np.zeros((h, w, 3), dtype=np.uint8)
     for x in range(w):
         arr[:, x] = grad_color(x, g_start, g_end)
@@ -59,15 +55,10 @@ def gradient_canvas(w: int, h: int, g_start: int, g_end: int) -> Image.Image:
 
 
 def remove_watch_bg(img: Image.Image, wx: int, g_start: int, g_end: int) -> Image.Image:
-    """Replace the white simulator chrome with the matching gradient colour.
-
-    Flood-fills from the image edges with a temporary sentinel colour, then
-    replaces those pixels with the correct gradient shade so the watch floats
-    on the background without a white halo.
-    """
+    """Replace the white simulator chrome with the matching gradient colour."""
     ww, wh = img.size
     tmp  = img.copy()
-    FILL = (1, 254, 1)   # sentinel colour unlikely to appear in real content
+    FILL = (1, 254, 1)
     seeds = (
         [(x, 0)      for x in range(0, ww, 6)] +
         [(x, wh - 1) for x in range(0, ww, 6)] +
@@ -85,26 +76,17 @@ def remove_watch_bg(img: Image.Image, wx: int, g_start: int, g_end: int) -> Imag
     return Image.fromarray(watch_arr, "RGB")
 
 
-def paste_icon(canvas: Image.Image, size: int, pos: tuple) -> None:
-    """Paste the app icon onto the canvas, masking its black background."""
-    icon = Image.open(STORE / "icon_128x128.png").convert("RGBA").resize(
-        (size, size), Image.LANCZOS
-    )
-    arr = np.array(icon)
-    # Make near-black pixels transparent so the icon floats cleanly
-    arr[(arr[:, :, 0] < 30) & (arr[:, :, 1] < 30) & (arr[:, :, 2] < 40), 3] = 0
-    tile = Image.new("RGBA", (size, size), (12, 17, 32, 255))
-    tile.paste(Image.fromarray(arr, "RGBA"), mask=Image.fromarray(arr, "RGBA").split()[3])
-    canvas.paste(tile.convert("RGB"), pos)
-
-
 # ── Cover 500×500 ─────────────────────────────────────────────────────────────
 
 def generate_cover() -> None:
+    src = HERE / "Cover" / "Cover.png"
+    if not src.exists():
+        print(f"Skipped cover — source not found: {src}")
+        return
     W, H, GS, GE = 500, 500, 180, 380
 
-    raw   = Image.open(HERE / "Cover/Watch.png").convert("RGB")
-    wh    = 420
+    raw   = Image.open(src).convert("RGB")
+    wh    = 360
     ww    = int(raw.width * wh / raw.height)
     wx    = W - ww - 5
     wy    = (H - wh) // 2
@@ -112,22 +94,21 @@ def generate_cover() -> None:
 
     canvas = gradient_canvas(W, H, GS, GE)
     canvas.paste(watch, (wx, wy))
-    paste_icon(canvas, 52, (20, 20))
 
     draw    = ImageDraw.Draw(canvas)
-    f_title = ImageFont.truetype(FONT, 36)
-    f_meta  = ImageFont.truetype(FONT, 17)
-    f_feat  = ImageFont.truetype(FONT, 14)
+    f_title = ImageFont.truetype(FONT, 28)
+    f_sub   = ImageFont.truetype(FONT, 20)
+    f_meta  = ImageFont.truetype(FONT, 14)
+    f_feat  = ImageFont.truetype(FONT, 12)
 
-    X, y = 20, 90
-    for line in [APP_TITLE, APP_SUBTITLE]:
-        draw.text((X, y), line, font=f_title, fill=WHITE)
-        y += f_title.getbbox(line)[3] + 10
-    y += 30
-    for line in [APP_META]:
-        draw.text((X, y), line, font=f_meta, fill=GREY)
-        y += f_meta.getbbox(line)[3] + 6
-    draw.text((X, y + 8), APP_FEAT, font=f_feat, fill=DIMGREY)
+    X, y = 20, 100
+    draw.text((X, y), APP_TITLE, font=f_title, fill=WHITE)
+    y += f_title.getbbox(APP_TITLE)[3] + 8
+    draw.text((X, y), APP_SUBTITLE, font=f_sub, fill=SUBWHT)
+    y += f_sub.getbbox(APP_SUBTITLE)[3] + 28
+    draw.text((X, y), APP_META, font=f_meta, fill=GREY)
+    y += f_meta.getbbox(APP_META)[3] + 6
+    draw.text((X, y), APP_FEAT, font=f_feat, fill=DIMGREY)
 
     out = STORE / "cover_500x500.png"
     canvas.save(out)
@@ -137,9 +118,13 @@ def generate_cover() -> None:
 # ── Hero 1440×720 ─────────────────────────────────────────────────────────────
 
 def generate_hero() -> None:
+    src = HERE / "Hero" / "Hero.png"
+    if not src.exists():
+        print(f"Skipped hero — source not found: {src}")
+        return
     W, H, GS, GE = 1440, 720, 500, 950
 
-    raw   = Image.open(HERE / "Hero/Watch.png").convert("RGB")
+    raw   = Image.open(src).convert("RGB")
     wh    = 700
     ww    = int(raw.width * wh / raw.height)
     wx    = W - ww - 10
@@ -148,7 +133,6 @@ def generate_hero() -> None:
 
     canvas = gradient_canvas(W, H, GS, GE)
     canvas.paste(watch, (wx, wy))
-    paste_icon(canvas, 72, (55, 45))
 
     draw    = ImageDraw.Draw(canvas)
     f_title = ImageFont.truetype(FONT, 92)
@@ -174,7 +158,7 @@ def generate_hero() -> None:
 # ── Previews 500×500 ──────────────────────────────────────────────────────────
 
 def make_preview(src: Path, dst: Path, inner: int = 440) -> None:
-    """Resize src to fit within a 440px square, centred on a 500×500 canvas."""
+    """Resize src to fit within a 440px square, centred on a 500×500 dark canvas."""
     img    = Image.open(src).convert("RGB")
     ow, oh = img.size
     scale  = min(inner / ow, inner / oh)
@@ -189,8 +173,8 @@ def make_preview(src: Path, dst: Path, inner: int = 440) -> None:
 def generate_previews() -> None:
     src      = HERE / "Preview"
     previews = [
-        ("Face.png",               "preview_face_500x500.png"),
-        ("Face with Watch.png",    "preview_face_with_watch_500x500.png"),
+        ("Preview1.png",  "preview_face_with_watch_500x500.png"),
+        ("Preview3.png",  "preview_face_500x500.png"),
     ]
     for name, out in previews:
         p = src / name
