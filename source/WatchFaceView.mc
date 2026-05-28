@@ -33,6 +33,7 @@ class WatchFaceView extends WatchUi.WatchFace {
     private var _leftField  as Number  = FIELD_STEPS;
     private var _rightField as Number  = FIELD_FLOORS;
     private var _use24h     as Boolean = false;
+    private var _sleeping   as Boolean = false;
 
     function initialize() {
         WatchFace.initialize();
@@ -57,10 +58,16 @@ class WatchFaceView extends WatchUi.WatchFace {
     function onUpdate(dc as Dc) as Void {
         dc.setColor(_bgColor, _bgColor);
         dc.clear();
-        drawBatteryArc(dc);
-        drawDate(dc);
-        drawTime(dc);
-        drawBottomBar(dc);
+        if (_sleeping) {
+            // Minimal always-on draw: date + time only, no weather/notif/arc calls
+            drawDate(dc);
+            drawTime(dc);
+        } else {
+            drawBatteryArc(dc);
+            drawDate(dc);
+            drawTime(dc);
+            drawBottomBar(dc);
+        }
     }
 
     // Read and cache all user-configurable values from Application.Properties.
@@ -197,21 +204,30 @@ class WatchFaceView extends WatchUi.WatchFace {
         dc.fillCircle(colonX, y + 20, 7);
 
         // ── Left: weather icon (top) · divider · temperature °C (bottom) ───
+        // Divider and temperature always render; icon/temp fall back gracefully
+        // when the watch is disconnected from the phone.
         var leftX  = 20;
         var wxCond = Weather.getCurrentConditions();
-        if (wxCond != null) {
-            if (wxCond.condition != null) {
-                drawWeatherIcon(dc, leftX, y - 18, wxCond.condition as Number);
-            }
+        var wxOk   = wxCond != null;
+
+        if (wxOk && wxCond.condition != null) {
+            drawWeatherIcon(dc, leftX, y - 18, wxCond.condition as Number);
+        } else {
+            // No data: draw a dim cloud outline as placeholder
+            drawWCloud(dc, leftX, y - 18);
             dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
-            dc.drawLine(leftX - 10, y + 2, leftX + 10, y + 2);
-            if (wxCond.temperature != null) {
-                dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
-                dc.drawText(leftX, y + 26, Graphics.FONT_SMALL,
-                    (wxCond.temperature as Number).format("%d") + "°",
-                    Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-            }
         }
+
+        dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawLine(leftX - 10, y + 2, leftX + 10, y + 2);
+
+        dc.setColor(wxOk && wxCond.temperature != null ? _fgColor : _dimColor,
+                    Graphics.COLOR_TRANSPARENT);
+        var tempStr = (wxOk && wxCond.temperature != null)
+            ? (wxCond.temperature as Number).format("%d") + "°"
+            : "--";
+        dc.drawText(leftX, y + 26, Graphics.FONT_SMALL, tempStr,
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
         // ── Right: notification box (bell icon + count) overlaid on minutes ──
         var settings   = System.getDeviceSettings();
@@ -425,10 +441,12 @@ class WatchFaceView extends WatchUi.WatchFace {
     }
 
     function onExitSleep() as Void {
+        _sleeping = false;
         WatchUi.requestUpdate();
     }
 
     function onEnterSleep() as Void {
+        _sleeping = true;
         WatchUi.requestUpdate();
     }
 
