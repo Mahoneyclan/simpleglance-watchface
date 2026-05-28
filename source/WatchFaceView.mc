@@ -204,28 +204,26 @@ class WatchFaceView extends WatchUi.WatchFace {
         dc.fillCircle(colonX, y + 20, 7);
 
         // ── Left: weather icon (top) · divider · temperature °C (bottom) ───
-        // Divider and temperature always render; icon/temp fall back gracefully
-        // when the watch is disconnected from the phone.
         var leftX  = 20;
         var wxCond = Weather.getCurrentConditions();
-        var wxOk   = wxCond != null;
 
-        if (wxOk && wxCond.condition != null) {
+        // Icon — dim cloud placeholder when data unavailable
+        if (wxCond != null && wxCond.condition != null) {
             drawWeatherIcon(dc, leftX, y - 18, wxCond.condition as Number);
         } else {
-            // No data: draw a dim cloud outline as placeholder
             drawWCloud(dc, leftX, y - 18);
-            dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
         }
 
+        // Divider
         dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
         dc.drawLine(leftX - 10, y + 2, leftX + 10, y + 2);
 
-        dc.setColor(wxOk && wxCond.temperature != null ? _fgColor : _dimColor,
-                    Graphics.COLOR_TRANSPARENT);
-        var tempStr = (wxOk && wxCond.temperature != null)
-            ? (wxCond.temperature as Number).format("%d") + "°"
-            : "--";
+        // Temperature — always drawn in _fgColor; shows "--" when unavailable
+        var tempStr = "--";
+        if (wxCond != null && wxCond.temperature != null) {
+            tempStr = (wxCond.temperature as Number).format("%d") + "°";
+        }
+        dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(leftX, y + 26, Graphics.FONT_SMALL, tempStr,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
