@@ -10,10 +10,11 @@ A clean, minimal digital watch face for the Garmin fenix 6 / fenix 6 Pro with fu
 
 - **Large two-tone time** — hours and minutes in independently configurable colours, DIN Condensed Bold font
 - **Date** — `DAY DD MON` format (e.g. `WED 20 MAY`)
-- **Colon separator** — two dot colon between hours and minutes
+- **Colon separator** — two filled dot colon between hours and minutes
 - **12 / 24-hour mode** — toggle in Garmin Connect settings
-- **Left status panel** — notification count (bell icon) and Bluetooth status, auto-dimmed
-- **Right status panel** — colour-coded battery icon + percentage (green / orange / red)
+- **Battery arc** — curved arc from 10 o'clock to 2 o'clock above the date; green (>50 %), orange (10–50 %), red (<10 %)
+- **Left panel** — current weather condition icon (sun, cloud, rain, snow, thunder, fog, wind, etc.) with temperature in °C below
+- **Notification box** — 3-sided rounded box with bell icon + count, overlaid on the right side of the minute digits
 - **Bottom data row** — two user-selected fields from: Steps, Calories, Distance, Floors, Active Minutes, or None
 - **9 background colours** — Black, White, Red, Blue, Green, Orange, Purple, Pink, Grey
 - **9 hour / minute colours** — same palette, independently chosen
@@ -44,6 +45,7 @@ All customisation is done in **Garmin Connect → Watch Faces → SimpleGlance �
 | Garmin fenix 6 | 260 × 260 px | ✓ Tested |
 | Garmin fenix 6S | 240 × 240 px | Listed |
 | Garmin fenix 6S Pro | 240 × 240 px | Listed |
+| Garmin fenix 6X Pro | 280 × 280 px | Listed |
 
 ---
 
@@ -60,7 +62,7 @@ All customisation is done in **Garmin Connect → Watch Faces → SimpleGlance �
 - [Garmin Connect IQ SDK](https://developer.garmin.com/connect-iq/sdk/) 8.1.1+
 - Java 11+ (Amazon Corretto 11 recommended on Apple Silicon)
 - A Garmin developer key (see below)
-- Python 3 + Pillow (for font atlas regeneration only)
+- Python 3 + Pillow (for font atlas regeneration or store asset generation only)
 
 ---
 
@@ -143,6 +145,18 @@ Key parameters in `switch_font.py`:
 
 ---
 
+## Regenerating Store Assets
+
+Place simulator screenshots in the `image-generators/` sub-folders, then run:
+
+```bash
+python3 image-generators/generate_store_assets.py
+```
+
+Outputs are written to `store_assets/`.
+
+---
+
 ## Project Structure
 
 ```text
@@ -158,7 +172,7 @@ Key parameters in `switch_font.py`:
 │   │   └── launcher_icon.png          # 40×40 launcher icon
 │   ├── fonts/
 │   │   ├── fonts.xml                  # Font resource declaration
-│   │   ├── time_font.fnt / .png       # White-glyph atlas (tinted at runtime)
+│   │   └── time_font.fnt / .png       # White-glyph atlas (tinted at runtime)
 │   ├── layouts/
 │   │   └── layout.xml
 │   ├── settings/
@@ -169,13 +183,28 @@ Key parameters in `switch_font.py`:
 ├── store_assets/                      # Connect IQ store images
 ├── image-generators/
 │   ├── generate_store_assets.py       # Generates cover, hero, and preview PNGs
-│   ├── Cover/Cover.png
-│   ├── Hero/Hero.png
-│   └── Preview/Preview1–3.png
+│   ├── Cover/Cover.png                # Source screenshot for cover image
+│   ├── Hero/Hero.png                  # Source screenshot for hero image
+│   └── Preview/Preview1–3.png        # Source screenshots for previews
 └── tools/
     ├── switch_font.py                 # Font atlas generator
     └── fonts/                         # Source TTF files
 ```
+
+---
+
+## Changelog
+
+### 1.1.0
+- Added battery arc (10–2 o'clock, colour-coded green/orange/red)
+- Added weather condition icon on left panel (sun, cloud, rain, snow, thunder, fog, wind and more)
+- Added current temperature in °C below weather icon
+- Added notification count box (3-sided rounded box overlaid on minute digits)
+- Removed battery percentage icon and Bluetooth icon from face
+- Added fenix 6X Pro to supported device list
+
+### 1.0.0
+- Initial release
 
 ---
 

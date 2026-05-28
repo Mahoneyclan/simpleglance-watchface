@@ -2,162 +2,181 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Fenix 6 Pro – Watch Face Mockup</title>
+<title>SimpleGlance — Watch Face Preview</title>
 <style>
-  body { background:#111; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; margin:0; font-family:-apple-system,sans-serif; }
-  h3 { color:#555; margin-bottom:12px; letter-spacing:2px; font-size:11px; text-transform:uppercase; }
+  body { background:#111; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; margin:0; font-family:-apple-system,sans-serif; gap:16px; }
+  h3 { color:#555; margin:0; letter-spacing:2px; font-size:11px; text-transform:uppercase; }
+  .controls { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+  label { color:#888; font-size:11px; display:flex; align-items:center; gap:4px; }
+  input[type=range] { width:80px; }
 </style>
 </head>
 <body>
-<h3>Garmin Fenix 6 Pro — Watch Face Preview</h3>
-<canvas id="c" width="600" height="600"></canvas>
+<h3>SimpleGlance — Garmin Fenix 6 Pro</h3>
+<canvas id="c" width="520" height="520"></canvas>
+<div class="controls">
+  <label>Battery <input type="range" id="batt" min="0" max="100" value="72"> <span id="battVal">72%</span></label>
+  <label>Notifs <input type="range" id="notif" min="0" max="20" value="3"> <span id="notifVal">3</span></label>
+  <label><input type="checkbox" id="btConn" checked> BT</label>
+</div>
 <script>
 const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
-const CX = 300, CY = 300, R = 260;
-function sx(x) { return x * 2 + (CX - 130 * 2); }
-function sy(y) { return y * 2 + (CY - 130 * 2); }
+// Scale: Fenix 6 = 260×260px, canvas = 520×520 (2×)
+const S = 2;
+const CX = 260, CY = 260, R = 260;
 
-// Clip to circle
-ctx.save();
-ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI*2); ctx.clip();
-ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 600, 600);
+// Map watch-face coords (0..260) to canvas coords
+function wx(x) { return x * S; }
+function wy(y) { return y * S; }
 
-// ── TOP ICONS (y=30) ──────────────────────────────────────────────────────
-const iy   = sy(30);
-const hour = new Date().getHours();
+let battPct = 72, notifCount = 3, btConnected = true;
 
-// Moon / Sun
-const mx = sx(95), my = iy;
-if (hour >= 12) {
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(mx, my, 9, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#000';
-  ctx.beginPath(); ctx.arc(mx+5, my-3, 7, 0, Math.PI*2); ctx.fill();
-} else {
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(mx, my, 6, 0, Math.PI*2); ctx.fill();
-  const rays =[[0,-10],[7,-7],[10,0],[7,7],[0,10],[-7,7],[-10,0],[-7,-7]];
-  const inn  =[[0,-7],[5,-5],[7,0],[5,5],[0,7],[-5,5],[-7,0],[-5,-5]];
-  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
-  for(let i=0;i<8;i++){ctx.beginPath();ctx.moveTo(mx+inn[i][0],my+inn[i][1]);ctx.lineTo(mx+rays[i][0],my+rays[i][1]);ctx.stroke();}
-}
+document.getElementById('batt').addEventListener('input', e => {
+  battPct = parseInt(e.target.value);
+  document.getElementById('battVal').textContent = battPct + '%';
+  draw();
+});
+document.getElementById('notif').addEventListener('input', e => {
+  notifCount = parseInt(e.target.value);
+  document.getElementById('notifVal').textContent = notifCount;
+  draw();
+});
+document.getElementById('btConn').addEventListener('change', e => {
+  btConnected = e.target.checked;
+  draw();
+});
 
-// Bluetooth
-const bx=sx(130), by=iy;
-ctx.strokeStyle='#4488ff'; ctx.lineWidth=2;
-ctx.beginPath(); ctx.moveTo(bx,by-9); ctx.lineTo(bx,by+9); ctx.stroke();
-ctx.beginPath(); ctx.moveTo(bx,by-9); ctx.lineTo(bx+6,by-4); ctx.lineTo(bx,by); ctx.lineTo(bx+6,by+4); ctx.lineTo(bx,by+9); ctx.stroke();
+function draw() {
+  ctx.clearRect(0, 0, 520, 520);
 
-// Battery graphic
-const bpx=sx(165), bpy=iy, battPct=78, bw2=32, bh=14;
-const battCol = battPct<=15?'#f33':battPct<=30?'#f80':'#fff';
-ctx.strokeStyle=battCol; ctx.lineWidth=1.5;
-ctx.strokeRect(bpx-bw2/2, bpy-bh/2, bw2, bh);
-ctx.fillStyle=battCol;
-ctx.fillRect(bpx+bw2/2, bpy-3, 3, 7);
-ctx.fillRect(bpx-bw2/2+2, bpy-bh/2+2, Math.round((bw2-4)*battPct/100), bh-4);
+  // ── Circular clip + background ─────────────────────────────────────────────
+  ctx.save();
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI*2); ctx.clip();
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 520, 520);
 
-// ── DATE (y=58) ───────────────────────────────────────────────────────────
-const now    = new Date();
-const days   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const dateStr = `${days[now.getDay()]}  ${months[now.getMonth()]}  ${String(now.getDate()).padStart(2,'0')}`;
-ctx.font='300 24px -apple-system,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-ctx.fillStyle='#fff'; ctx.fillText(dateStr, sx(130), sy(58));
+  // ── Battery arc (top semicircle, radius ~246px on 520 canvas = 123 watch-px) ──
+  // Garmin: 0°=3 o'clock, 90°=12 o'clock, CCW direction.
+  // Canvas: 0°=3 o'clock, angles go CW. So Garmin 90° = Canvas -90° (=270° CCW).
+  // Full arc: canvas from -180° to 0° (= Garmin 0° to 180° CCW through top).
+  const r_arc = (260/2 - 7) * S;  // (screenWidth/2 - 7) * scale
+  const endFrac = battPct / 100;
+  const battCol = battPct < 10 ? '#ff2222' : battPct <= 50 ? '#ff8800' : '#00cc44';
 
-// ── TIME — frosted glass (y=122) ──────────────────────────────────────────
-let h = now.getHours()%12||12;
-const timeStr = `${String(h).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-const tx=sx(130), ty=sy(122);
-ctx.font='bold 172px -apple-system,BlinkMacSystemFont,sans-serif';
-ctx.textAlign='center'; ctx.textBaseline='middle';
-for(const[lw,alpha] of [[14,0.12],[10,0.22],[7,0.38],[4,0.65]]){
-  ctx.strokeStyle=`rgba(255,255,255,${alpha})`; ctx.lineWidth=lw; ctx.strokeText(timeStr,tx,ty);
-}
-ctx.fillStyle='#aaa'; ctx.fillText(timeStr,tx,ty);
+  // Background (dim) track
+  ctx.beginPath();
+  ctx.arc(CX, CY, r_arc, Math.PI, 0, false);  // 180°→0° CCW on canvas = top semicircle
+  ctx.strokeStyle = '#444'; ctx.lineWidth = 10; ctx.stroke();
 
-// ── BLOCKS with progressive fill + sparkline ─────────────────────────────
-const blockTop    = sy(176);
-const blockColors = ['#1155BB','#00AA44','#BBAA00','#CC5500','#BB1133'];
-const blockDark   = ['#071533','#003311','#332900','#331400','#330008'];
-const blockVals   = ['7','342','8.2k','45','71%'];
-// fill ratios: floors/10, cal/500, steps/10000, (100-stress)/100, body/100
-const fillRatios  = [7/10, 342/500, 8200/10000, 55/100, 71/100];
-const blockW      = 600/5;
-const blockHeight = 600 - blockTop;
-const sparkY      = [];
-
-for(let i=0;i<5;i++){
-  const bx2   = i*blockW, bcx = bx2+blockW/2;
-  const ratio = Math.min(1,Math.max(0,fillRatios[i]));
-  const fillH = Math.round(blockHeight*ratio);
-  const fillY = blockTop+blockHeight-fillH;
-  sparkY.push(fillY);
-
-  // Dark background
-  ctx.fillStyle=blockDark[i]; ctx.fillRect(bx2,blockTop,blockW,blockHeight);
-  // Bright fill from bottom
-  ctx.fillStyle=blockColors[i]; ctx.fillRect(bx2,fillY,blockW,fillH);
-
-  // Value
-  ctx.font='bold 22px -apple-system,sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillStyle='#fff'; ctx.fillText(blockVals[i], bcx, blockTop+26);
-
-  // Icon
-  drawIcon(ctx, bcx, blockTop+56, i);
-}
-
-// Sparkline
-ctx.strokeStyle='rgba(255,255,255,0.9)'; ctx.lineWidth=2.5;
-ctx.beginPath();
-for(let i=0;i<5;i++){
-  const x=i*blockW+blockW/2;
-  i===0?ctx.moveTo(x,sparkY[i]):ctx.lineTo(x,sparkY[i]);
-}
-ctx.stroke();
-
-// Sparkline dots
-ctx.fillStyle='#fff';
-for(let i=0;i<5;i++){
-  ctx.beginPath(); ctx.arc(i*blockW+blockW/2, sparkY[i], 3, 0, Math.PI*2); ctx.fill();
-}
-
-function drawIcon(ctx,cx,cy,type){
-  ctx.fillStyle='#fff'; ctx.strokeStyle='#fff'; ctx.lineWidth=2.5;
-  if(type===0){ // Stairs
-    ctx.fillRect(cx-12,cy+4,24,4); ctx.fillRect(cx-4,cy-4,16,4); ctx.fillRect(cx+4,cy-12,8,4);
-    ctx.fillRect(cx-4,cy-4,4,8); ctx.fillRect(cx+4,cy-12,4,16);
-  } else if(type===1){ // Lightning
-    ctx.beginPath(); ctx.moveTo(cx+4,cy-16); ctx.lineTo(cx-8,cy+1); ctx.lineTo(cx,cy+1);
-    ctx.lineTo(cx-4,cy+16); ctx.lineTo(cx+8,cy-1); ctx.lineTo(cx,cy-1); ctx.closePath(); ctx.fill();
-  } else if(type===2){ // Footsteps
-    ctx.beginPath(); ctx.ellipse(cx-7,cy-5,5,8,-0.3,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(cx+7,cy+5,5,8,0.3,0,Math.PI*2); ctx.fill();
-  } else if(type===3){ // Flame
-    ctx.beginPath(); ctx.moveTo(cx,cy-16);
-    ctx.bezierCurveTo(cx+14,cy-8,cx+10,cy+6,cx,cy+14);
-    ctx.bezierCurveTo(cx-10,cy+6,cx-14,cy-8,cx,cy-16);
-    ctx.fill(); ctx.fillStyle='#fa0';
-    ctx.beginPath(); ctx.arc(cx,cy+4,6,0,Math.PI*2); ctx.fill();
-  } else if(type===4){ // Body
-    ctx.beginPath(); ctx.arc(cx,cy-14,7,0,Math.PI*2); ctx.fill();
-    ctx.fillRect(cx-5,cy-6,10,10);
+  // Battery fill: starts at 180° (9 o'clock on canvas) and sweeps CW by endFrac*180°
+  // Garmin 0°→endAngle CCW = Canvas startAngle 180° to (180° - endFrac*180°)
+  if (battPct > 0) {
+    const startA = Math.PI;            // 180° = 9 o'clock (canvas)
+    const endA   = Math.PI - endFrac * Math.PI;  // sweeps CW toward 0° (3 o'clock)
     ctx.beginPath();
-    ctx.moveTo(cx-5,cy-4); ctx.lineTo(cx-14,cy+4);
-    ctx.moveTo(cx+5,cy-4); ctx.lineTo(cx+14,cy+4);
-    ctx.moveTo(cx-3,cy+4); ctx.lineTo(cx-5,cy+18);
-    ctx.moveTo(cx+3,cy+4); ctx.lineTo(cx+5,cy+18);
-    ctx.stroke();
+    ctx.arc(CX, CY, r_arc, startA, endA, false);
+    ctx.strokeStyle = battCol; ctx.lineWidth = 10; ctx.stroke();
   }
+  ctx.lineWidth = 1;
+
+  // ── Date ──────────────────────────────────────────────────────────────────
+  const now    = new Date();
+  const days   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const dateStr = `${days[now.getDay()]} ${String(now.getDate()).padStart(2,'0')} ${months[now.getMonth()]}`;
+  ctx.font = `bold ${14*S}px -apple-system,sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(dateStr, wx(130), wy(38));
+
+  // ── Time (two-tone) ────────────────────────────────────────────────────────
+  let h = now.getHours() % 12 || 12;
+  const hrStr  = String(h).padStart(2,'0');
+  const minStr = String(now.getMinutes()).padStart(2,'0');
+  const timeY  = wy(130);
+  const fSize  = 90 * S;  // approximate DIN Condensed Bold at cap-height
+
+  ctx.font = `900 ${fSize}px "DIN Condensed","Arial Narrow",sans-serif`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+
+  const hrW  = ctx.measureText(hrStr).width;
+  const minW = ctx.measureText(minStr).width;
+  const gap  = 12 * S;
+  const totW = hrW + gap + minW;
+  const hrX  = CX - totW / 2;
+  const minX = hrX + hrW + gap;
+  const colX = hrX + hrW + gap / 2;
+
+  ctx.fillStyle = '#ffffff'; ctx.fillText(hrStr, hrX, timeY);
+  ctx.fillStyle = '#ff8800'; ctx.fillText(minStr, minX, timeY);
+
+  // Colon dots
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(colX, timeY - 20*S, 7*S, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(colX, timeY + 20*S, 7*S, 0, Math.PI*2); ctx.fill();
+
+  // ── Left panel: bell | divider | BT ───────────────────────────────────────
+  const lx = wx(20), ly = timeY;
+
+  // Bell icon (~22px tall)
+  const bcy = timeY - 28*S;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(lx, bcy - 3*S, 9*S, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.fillRect(lx - 10*S, bcy - 3*S, 20*S, 10*S);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(lx - 8*S, bcy - 3*S, 16*S, 8*S);
+  ctx.fillRect(lx - 10*S, bcy + 5*S, 20*S, 3*S);
+  ctx.beginPath(); ctx.arc(lx, bcy + 11*S, 3*S, 0, Math.PI*2); ctx.fill();
+
+  // Divider
+  ctx.strokeStyle = '#555'; ctx.lineWidth = S;
+  ctx.beginPath(); ctx.moveTo(lx - 10*S, ly + 2*S); ctx.lineTo(lx + 10*S, ly + 2*S); ctx.stroke();
+
+  // BT icon (~20px tall, 2px stroke)
+  const btcy = timeY + 26*S;
+  const btCol = btConnected ? '#4488ff' : '#555';
+  ctx.strokeStyle = btCol; ctx.lineWidth = 2*S;
+  ctx.beginPath(); ctx.moveTo(lx, btcy - 10*S); ctx.lineTo(lx, btcy + 10*S); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(lx, btcy - 10*S); ctx.lineTo(lx + 7*S, btcy - 5*S); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(lx + 7*S, btcy - 5*S); ctx.lineTo(lx, btcy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(lx, btcy); ctx.lineTo(lx + 7*S, btcy + 5*S); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(lx + 7*S, btcy + 5*S); ctx.lineTo(lx, btcy + 10*S); ctx.stroke();
+  ctx.lineWidth = 1;
+
+  // ── Right panel: notification count box ───────────────────────────────────
+  const ncx  = wx(260 - 30);
+  const ncy  = timeY;
+  const boxW = 54 * S, boxH = 32 * S;
+  const bx   = ncx - boxW / 2, by = ncy - boxH / 2;
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(bx, by, boxW, boxH);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2*S;
+  ctx.strokeRect(bx, by, boxW, boxH);
+  ctx.lineWidth = 1;
+
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${14*S}px -apple-system,sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(notifCount, ncx, ncy);
+
+  // ── Bottom bar ─────────────────────────────────────────────────────────────
+  ctx.fillStyle = '#fff';
+  ctx.font = `${11*S}px -apple-system,sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('8.2k stp  •  7 fl', wx(130), wy(223));
+
+  // ── Bezel ──────────────────────────────────────────────────────────────────
+  ctx.restore();
+  ctx.strokeStyle = '#282828'; ctx.lineWidth = 18;
+  ctx.beginPath(); ctx.arc(CX, CY, R + 5, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = '#444'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI*2); ctx.stroke();
 }
 
-// ── Bezel ─────────────────────────────────────────────────────────────────
-ctx.restore();
-ctx.strokeStyle='#282828'; ctx.lineWidth=14;
-ctx.beginPath(); ctx.arc(CX,CY,R+4,0,Math.PI*2); ctx.stroke();
-ctx.strokeStyle='#444'; ctx.lineWidth=2;
-ctx.beginPath(); ctx.arc(CX,CY,R-1,0,Math.PI*2); ctx.stroke();
+draw();
+setInterval(draw, 10000);
 </script>
 </body>
 </html>

@@ -6,6 +6,7 @@ import Toybox.System;
 import Toybox.Time;
 import Toybox.Time.Gregorian;
 import Toybox.WatchUi;
+import Toybox.Weather;
 
 // ── Field identifiers — match listEntry values in settings.xml ────────────────
 const FIELD_NONE       = 0 as Number;
@@ -56,6 +57,7 @@ class WatchFaceView extends WatchUi.WatchFace {
     function onUpdate(dc as Dc) as Void {
         dc.setColor(_bgColor, _bgColor);
         dc.clear();
+        drawBatteryArc(dc);
         drawDate(dc);
         drawTime(dc);
         drawBottomBar(dc);
@@ -125,12 +127,42 @@ class WatchFaceView extends WatchUi.WatchFace {
             months[now.month - 1]
         ]);
         dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(_centerX, 35, Graphics.FONT_MEDIUM, dateStr,
+        dc.drawText(_centerX, 43, Graphics.FONT_MEDIUM, dateStr,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    }
+
+    // Arc from 10 o'clock (150°) to 2 o'clock (30°) through the top.
+    // Garmin angles: 0°=3 o'clock, 90°=12 o'clock, CCW positive.
+    // 10 o'clock = 150°, 2 o'clock = 30°, total span = 120°.
+    // Fill grows from 2 o'clock CCW; drains by retreating from 10 o'clock side.
+    private function drawBatteryArc(dc as Dc) as Void {
+        var stats   = System.getSystemStats();
+        var battPct = stats.battery.toNumber();
+        var cx      = _centerX;
+        var cy      = _centerX;          // screen is square on all supported devices
+        var r       = (_screenWidth / 2) - 7;
+
+        // Dim background track (10 o'clock → 2 o'clock through top)
+        dc.setPenWidth(5);
+        dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, 30, 150);
+
+        // Coloured fill: grows from 30° (2 o'clock) CCW toward 150° (10 o'clock)
+        if (battPct > 0) {
+            var battCol = battPct < 10  ? Graphics.COLOR_RED
+                        : battPct <= 50 ? Graphics.COLOR_ORANGE
+                        :                 Graphics.COLOR_GREEN;
+            dc.setColor(battCol, Graphics.COLOR_TRANSPARENT);
+            var endAngle = 30 + battPct * 120 / 100;
+            dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, 30, endAngle);
+        }
+        dc.setPenWidth(1);
     }
 
     // Large two-tone time centred on screen.
     // Hours (_hourColor) left of colon; minutes (_minColor) right of colon.
+    // Left panel: weather icon (top) + temperature °C (bottom).
+    // Right panel: 3-sided box with mini bell + notification count overlaid on minutes.
     private function drawTime(dc as Dc) as Void {
         var clockTime = System.getClockTime();
         var hours = _use24h
@@ -139,7 +171,7 @@ class WatchFaceView extends WatchUi.WatchFace {
         var hrStr  = hours.format("%02d");
         var minStr = clockTime.min.format("%02d");
         var font   = _font;
-        var y      = 130;
+        var y      = 135;
         var cx     = _centerX;
         var justL  = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
 
@@ -164,33 +196,28 @@ class WatchFaceView extends WatchUi.WatchFace {
         dc.fillCircle(colonX, y - 20, 7);
         dc.fillCircle(colonX, y + 20, 7);
 
-        // ── Left: notification | divider | BT ────────────────────────────────
+        // ── Left: weather icon (top) · divider · temperature °C (bottom) ───
+        var leftX  = 20;
+        var wxCond = Weather.getCurrentConditions();
+        if (wxCond != null) {
+            if (wxCond.condition != null) {
+                drawWeatherIcon(dc, leftX, y - 18, wxCond.condition as Number);
+            }
+            dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
+            dc.drawLine(leftX - 10, y + 2, leftX + 10, y + 2);
+            if (wxCond.temperature != null) {
+                dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
+                dc.drawText(leftX, y + 26, Graphics.FONT_SMALL,
+                    (wxCond.temperature as Number).format("%d") + "°",
+                    Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            }
+        }
+
+        // ── Right: notification box (bell icon + count) overlaid on minutes ──
         var settings   = System.getDeviceSettings();
-        var leftX      = 22;
         var notifCount = (settings.notificationCount != null)
             ? (settings.notificationCount as Number) : 0;
-
-        drawBellIcon(dc, leftX, y - 26);
-        dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(leftX, y - 11, Graphics.FONT_XTINY, notifCount.toString(),
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-
-        dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawLine(leftX - 7, y + 2, leftX + 7, y + 2);
-
-        drawBtIcon(dc, leftX, y + 17, settings.phoneConnected);
-
-        // ── Right: battery icon + percentage ─────────────────────────────────
-        var rightX  = _screenWidth - 22;
-        var stats   = System.getSystemStats();
-        var battPct = stats.battery.toNumber();
-        var battCol = battPct < 10
-            ? Graphics.COLOR_RED
-            : (battPct <= 50 ? Graphics.COLOR_ORANGE : Graphics.COLOR_GREEN);
-        drawBatteryIcon(dc, rightX, y - 12, battPct, battCol);
-        dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(rightX, y + 8, Graphics.FONT_XTINY, battPct.toString() + "%",
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        drawNotifBox(dc, _screenWidth - 30, y, notifCount);
     }
 
     // Single data row below the time digits, driven by LeftField / RightField settings.
@@ -206,45 +233,192 @@ class WatchFaceView extends WatchUi.WatchFace {
 
         if (text.length() > 0) {
             dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(_centerX, 223, Graphics.FONT_SMALL, text, justC);
+            dc.drawText(_centerX, 228, Graphics.FONT_SMALL, text, justC);
         }
     }
 
     // ── Icon helpers ──────────────────────────────────────────────────────────
 
-    private function drawBellIcon(dc as Dc, cx as Number, cy as Number) as Void {
+    // 3-sided box (top + left + bottom, open right) with rounded top-left and
+    // bottom-left corners. Bell straddles the top border; count fills the interior.
+    private function drawNotifBox(dc as Dc, cx as Number, cy as Number, count as Number) as Void {
+        var boxW = 34;
+        var boxH = 52;
+        var rc   = 5;                 // corner radius
+        var x    = cx - boxW / 2;
+        var y    = cy - boxH / 2;    // y = top border line
+
+        // Erase minute digits behind the box
+        dc.setColor(_bgColor, Graphics.COLOR_TRANSPARENT);
+        dc.fillRectangle(x, y, boxW, boxH);
+
+        // 3-sided border with rounded left corners:
+        //   top line → top-left arc → left line → bottom-left arc → bottom line
+        dc.setPenWidth(1);
+        dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawLine(x + rc, y,            x + boxW, y);               // top
+        dc.drawArc( x + rc, y + rc,       rc, Graphics.ARC_COUNTER_CLOCKWISE, 90, 180);  // top-left
+        dc.drawLine(x,      y + rc,       x,        y + boxH - rc);   // left
+        dc.drawArc( x + rc, y + boxH - rc, rc, Graphics.ARC_COUNTER_CLOCKWISE, 180, 270); // bottom-left
+        dc.drawLine(x + rc, y + boxH,    x + boxW, y + boxH);         // bottom
+
+        // Bell centred on the top border — half above, half inside
+        drawMiniBell(dc, cx, y);
+
+        // Count centred between bell bottom (y+9) and box bottom
+        dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, (y + 9 + y + boxH) / 2, Graphics.FONT_SMALL, count.toString(),
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    }
+
+    // Small bell glyph ~12px tall, for use inside compact UI elements.
+    private function drawMiniBell(dc as Dc, cx as Number, cy as Number) as Void {
         dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
         dc.fillCircle(cx, cy - 2, 5);
         dc.setColor(_bgColor, Graphics.COLOR_TRANSPARENT);
         dc.fillRectangle(cx - 6, cy - 2, 12, 6);
         dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
-        dc.fillRectangle(cx - 4, cy - 2, 8, 5);
+        dc.fillRectangle(cx - 5, cy - 2, 10, 5);
         dc.fillRectangle(cx - 6, cy + 3, 12, 2);
         dc.fillCircle(cx, cy + 7, 2);
     }
 
-    private function drawBtIcon(dc as Dc, cx as Number, cy as Number, connected as Boolean) as Void {
-        dc.setColor(connected ? Graphics.COLOR_BLUE : _dimColor, Graphics.COLOR_TRANSPARENT);
-        dc.drawLine(cx, cy - 6, cx, cy + 6);
-        dc.drawLine(cx, cy - 6, cx + 4, cy - 3);
-        dc.drawLine(cx + 4, cy - 3, cx, cy);
-        dc.drawLine(cx, cy, cx + 4, cy + 3);
-        dc.drawLine(cx + 4, cy + 3, cx, cy + 6);
+    // ── Weather icon ──────────────────────────────────────────────────────────
+
+    // Dispatch to the right drawing function based on condition integer.
+    private function drawWeatherIcon(dc as Dc, cx as Number, cy as Number, condition as Number) as Void {
+        if      (condition == Weather.CONDITION_CLEAR) {
+            drawWSun(dc, cx, cy);
+        } else if (condition == Weather.CONDITION_PARTLY_CLOUDY) {
+            drawWPartlyCloudy(dc, cx, cy);
+        } else if (condition == Weather.CONDITION_RAIN       ||
+                   condition == Weather.CONDITION_SCATTERED_SHOWERS ||
+                   condition == Weather.CONDITION_LIGHT_RAIN ||
+                   condition == Weather.CONDITION_UNKNOWN_PRECIPITATION) {
+            drawWRain(dc, cx, cy, false);
+        } else if (condition == Weather.CONDITION_HEAVY_RAIN) {
+            drawWRain(dc, cx, cy, true);
+        } else if (condition == Weather.CONDITION_SNOW       ||
+                   condition == Weather.CONDITION_LIGHT_SNOW ||
+                   condition == Weather.CONDITION_HEAVY_SNOW) {
+            drawWSnow(dc, cx, cy);
+        } else if (condition == Weather.CONDITION_THUNDERSTORMS         ||
+                   condition == Weather.CONDITION_SCATTERED_THUNDERSTORMS) {
+            drawWThunder(dc, cx, cy);
+        } else if (condition == Weather.CONDITION_FOG   ||
+                   condition == Weather.CONDITION_HAZY) {
+            drawWFog(dc, cx, cy);
+        } else if (condition == Weather.CONDITION_WINDY) {
+            drawWWindy(dc, cx, cy);
+        } else if (condition == Weather.CONDITION_WINTRY_MIX       ||
+                   condition == Weather.CONDITION_LIGHT_RAIN_SNOW  ||
+                   condition == Weather.CONDITION_HEAVY_RAIN_SNOW) {
+            drawWWintryMix(dc, cx, cy);
+        } else if (condition == Weather.CONDITION_HAIL) {
+            drawWHail(dc, cx, cy);
+        } else {
+            drawWCloud(dc, cx, cy);  // mostly cloudy, cloudy, unknown
+        }
     }
 
-    private function drawBatteryIcon(dc as Dc, cx as Number, cy as Number, pct as Number, color as Number) as Void {
-        var w  = 14;
-        var h  = 8;
-        var nw = 3;
-        var nh = 4;
-        var x  = cx - w / 2;
-        var y  = cy - h / 2;
-        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
-        dc.drawRectangle(x, y, w, h);
-        dc.fillRectangle(x + w, y + (h - nh) / 2, nw, nh);
-        var fillW = (w - 2) * pct / 100;
-        if (fillW < 1) { fillW = 1; }
-        dc.fillRectangle(x + 1, y + 1, fillW, h - 2);
+    // Cloud silhouette: two bumps over a flat rectangular base (~18×10px).
+    private function drawWCloud(dc as Dc, cx as Number, cy as Number) as Void {
+        dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(cx - 4, cy - 4, 5);
+        dc.fillCircle(cx + 3, cy - 5, 4);
+        dc.fillRectangle(cx - 9, cy - 4, 18, 5);
+    }
+
+    // Clear: orange filled circle + 4 short cardinal rays.
+    private function drawWSun(dc as Dc, cx as Number, cy as Number) as Void {
+        dc.setColor(Graphics.COLOR_ORANGE, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(cx, cy, 6);
+        dc.setPenWidth(2);
+        dc.drawLine(cx,      cy - 9, cx,     cy - 8);
+        dc.drawLine(cx,      cy + 8, cx,     cy + 9);
+        dc.drawLine(cx - 9,  cy,     cx - 8, cy);
+        dc.drawLine(cx + 8,  cy,     cx + 9, cy);
+        dc.setPenWidth(1);
+    }
+
+    // Partly cloudy: small sun upper-left, cloud lower-right overlapping it.
+    private function drawWPartlyCloudy(dc as Dc, cx as Number, cy as Number) as Void {
+        dc.setColor(Graphics.COLOR_ORANGE, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(cx - 4, cy - 4, 4);
+        drawWCloud(dc, cx + 2, cy + 2);
+    }
+
+    // Rain: cloud + 3 angled blue lines below. heavy = 2 extra drops.
+    private function drawWRain(dc as Dc, cx as Number, cy as Number, heavy as Boolean) as Void {
+        drawWCloud(dc, cx, cy - 2);
+        dc.setColor(0x4488FF, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(2);
+        dc.drawLine(cx - 4, cy + 3, cx - 5, cy + 7);
+        dc.drawLine(cx,     cy + 3, cx - 1, cy + 7);
+        dc.drawLine(cx + 4, cy + 3, cx + 3, cy + 7);
+        if (heavy) {
+            dc.drawLine(cx - 2, cy + 6, cx - 3, cy + 10);
+            dc.drawLine(cx + 2, cy + 6, cx + 1, cy + 10);
+        }
+        dc.setPenWidth(1);
+    }
+
+    // Snow: cloud + 3 small light-blue dots below.
+    private function drawWSnow(dc as Dc, cx as Number, cy as Number) as Void {
+        drawWCloud(dc, cx, cy - 2);
+        dc.setColor(0xAADDFF, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(cx - 4, cy + 6, 2);
+        dc.fillCircle(cx,     cy + 6, 2);
+        dc.fillCircle(cx + 4, cy + 6, 2);
+    }
+
+    // Thunderstorm: cloud + yellow lightning bolt below.
+    private function drawWThunder(dc as Dc, cx as Number, cy as Number) as Void {
+        drawWCloud(dc, cx, cy - 2);
+        dc.setColor(Graphics.COLOR_YELLOW, Graphics.COLOR_TRANSPARENT);
+        dc.fillPolygon([[cx + 2, cy + 2], [cx - 2, cy + 7],
+                        [cx,     cy + 7], [cx - 2, cy + 11],
+                        [cx + 3, cy + 6], [cx + 1, cy + 6]]);
+    }
+
+    // Fog / haze: three horizontal lines of decreasing length.
+    private function drawWFog(dc as Dc, cx as Number, cy as Number) as Void {
+        dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(2);
+        dc.drawLine(cx - 8, cy - 4, cx + 8, cy - 4);
+        dc.drawLine(cx - 8, cy,     cx + 8, cy);
+        dc.drawLine(cx - 6, cy + 4, cx + 6, cy + 4);
+        dc.setPenWidth(1);
+    }
+
+    // Windy: three horizontal lines of staggered length.
+    private function drawWWindy(dc as Dc, cx as Number, cy as Number) as Void {
+        dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(2);
+        dc.drawLine(cx - 8, cy - 4, cx + 7, cy - 4);
+        dc.drawLine(cx - 8, cy,     cx + 9, cy);
+        dc.drawLine(cx - 8, cy + 4, cx + 5, cy + 4);
+        dc.setPenWidth(1);
+    }
+
+    // Wintry mix: cloud + one blue raindrop left + one snow dot right.
+    private function drawWWintryMix(dc as Dc, cx as Number, cy as Number) as Void {
+        drawWCloud(dc, cx, cy - 2);
+        dc.setColor(0x4488FF, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(2);
+        dc.drawLine(cx - 4, cy + 3, cx - 5, cy + 7);
+        dc.setPenWidth(1);
+        dc.setColor(0xAADDFF, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(cx + 3, cy + 6, 2);
+    }
+
+    // Hail: cloud + 3 small grey circles below.
+    private function drawWHail(dc as Dc, cx as Number, cy as Number) as Void {
+        drawWCloud(dc, cx, cy - 2);
+        dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(cx - 4, cy + 6, 2);
+        dc.fillCircle(cx,     cy + 6, 2);
+        dc.fillCircle(cx + 4, cy + 6, 2);
     }
 
     function onHide() as Void {
