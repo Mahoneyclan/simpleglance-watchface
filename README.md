@@ -13,9 +13,9 @@ A clean, minimal digital watch face for the Garmin fenix 6 / fenix 6 Pro with fu
 - **Colon separator** — two filled dot colon between hours and minutes
 - **12 / 24-hour mode** — toggle in Garmin Connect settings
 - **Battery arc** — curved arc from 10 o'clock to 2 o'clock above the date; green (>50 %), orange (10–50 %), red (<10 %)
-- **Left panel** — current weather condition icon (sun, cloud, rain, snow, thunder, fog, wind, etc.) with temperature in °C below
+- **HR panel** — 3-sided rounded box with heart icon + current heart rate (bpm), overlaid on the left side of the hour digits
 - **Notification box** — 3-sided rounded box with bell icon + count, overlaid on the right side of the minute digits
-- **Bottom data row** — two user-selected fields from: Steps, Calories, Distance, Floors, Active Minutes, or None
+- **Bottom data row** — two user-selected fields from: Steps, Calories, Distance, Floors, Active Minutes, Elevation, or None
 - **9 background colours** — Black, White, Red, Blue, Green, Orange, Purple, Pink, Grey
 - **9 hour / minute colours** — same palette, independently chosen
 - **Auto contrast** — all UI text and icons automatically switch white/black based on background brightness
@@ -31,10 +31,9 @@ All customisation is done in **Garmin Connect → Watch Faces → SimpleGlance �
 | Background Color | Black, White, Red, Blue, Green, Orange, Purple, Pink, Grey | Black |
 | Hours Color | Same palette | White |
 | Minutes Color | Same palette | Orange |
-| Bottom Left Field | Steps, Calories, Distance, Floors, Active Minutes, None | Steps |
+| Bottom Left Field | Steps, Calories, Distance, Floors, Active Minutes, Elevation, None | Steps |
 | Bottom Right Field | Same options | Floors |
 | 24-Hour Time | On / Off | Off (12 h) |
-| Weather Refresh Rate | Every 15 min, 30 min, 1 hour, 2 hours | 30 min |
 
 ---
 
@@ -195,6 +194,14 @@ Outputs are written to `store_assets/`.
 ---
 
 ## Changelog
+
+### 1.3.0
+
+- Removed weather — dropped background service, HTTP fetching, and Open-Meteo integration
+- Added HR panel: heart icon + live heart rate on the left side of the time digits (via SensorHistory)
+- Added Elevation as a selectable bottom bar field
+- Removed Weather Refresh Rate setting
+- Replaced `Background`/`Communications`/`Positioning` permissions with `SensorHistory`
 
 ### 1.2.3
 

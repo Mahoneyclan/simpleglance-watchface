@@ -1,16 +1,14 @@
 <properties xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
 
-    <!-- Stored as actual 0xRRGGBB hex values — read directly in code -->
+    <!-- Stored as actual 0xRRGGBB hex values -->
     <property id="BgColor"    type="number">0x000000</property>
     <property id="HourColor"  type="number">0xFFFFFF</property>
     <property id="MinColor"   type="number">0xFF8000</property>
 
-    <!-- Field indices: 0=None 1=Steps 2=Calories 3=Distance 4=Floors 5=ActiveMin -->
+    <!-- Bottom bar field indices: 0=None 1=Steps 2=Calories 3=Distance 4=Floors 5=ActiveMin 6=HeartRate 7=Elevation -->
     <property id="LeftField"  type="number">1</property>
     <property id="RightField" type="number">4</property>
-    <property id="Use24h"       type="boolean">false</property>
 
-    <!-- Weather refresh rate in minutes: 15, 30, 60, 120 -->
-    <property id="RefreshRate" type="number">30</property>
+    <property id="Use24h" type="boolean">false</property>
 
 </properties>

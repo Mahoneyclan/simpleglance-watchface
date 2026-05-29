@@ -50,6 +50,7 @@
             <listEntry value="3">@Strings.FieldDistance</listEntry>
             <listEntry value="4">@Strings.FieldFloors</listEntry>
             <listEntry value="5">@Strings.FieldActiveMin</listEntry>
+            <listEntry value="7">@Strings.FieldElevation</listEntry>
         </settingConfig>
     </setting>
 
@@ -61,20 +62,12 @@
             <listEntry value="3">@Strings.FieldDistance</listEntry>
             <listEntry value="4">@Strings.FieldFloors</listEntry>
             <listEntry value="5">@Strings.FieldActiveMin</listEntry>
+            <listEntry value="7">@Strings.FieldElevation</listEntry>
         </settingConfig>
     </setting>
 
     <setting propertyKey="@Properties.Use24h" title="@Strings.SettingUse24h">
         <settingConfig type="boolean" />
-    </setting>
-
-    <setting propertyKey="@Properties.RefreshRate" title="@Strings.SettingRefreshRate">
-        <settingConfig type="list">
-            <listEntry value="15">@Strings.Refresh15m</listEntry>
-            <listEntry value="30">@Strings.Refresh30m</listEntry>
-            <listEntry value="60">@Strings.Refresh1h</listEntry>
-            <listEntry value="120">@Strings.Refresh2h</listEntry>
-        </settingConfig>
     </setting>
 
 </settings>
