@@ -21,6 +21,13 @@
     <string id="ColorPurple">Purple</string>
     <string id="ColorPink">Pink</string>
 
+    <!-- Weather refresh rate -->
+    <string id="SettingRefreshRate">Weather Refresh Rate</string>
+    <string id="Refresh15m">Every 15 min</string>
+    <string id="Refresh30m">Every 30 min</string>
+    <string id="Refresh1h">Every 1 hour</string>
+    <string id="Refresh2h">Every 2 hours</string>
+
     <!-- Field options -->
     <string id="FieldNone">None</string>
     <string id="FieldSteps">Steps</string>

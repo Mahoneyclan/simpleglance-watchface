@@ -68,4 +68,13 @@
         <settingConfig type="boolean" />
     </setting>
 
+    <setting propertyKey="@Properties.RefreshRate" title="@Strings.SettingRefreshRate">
+        <settingConfig type="list">
+            <listEntry value="15">@Strings.Refresh15m</listEntry>
+            <listEntry value="30">@Strings.Refresh30m</listEntry>
+            <listEntry value="60">@Strings.Refresh1h</listEntry>
+            <listEntry value="120">@Strings.Refresh2h</listEntry>
+        </settingConfig>
+    </setting>
+
 </settings>

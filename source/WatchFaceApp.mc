@@ -15,8 +15,7 @@ class WatchFaceApp extends Application.AppBase {
     }
 
     function onStart(state as Dictionary?) as Void {
-        Background.deleteTemporalEvent();
-        Background.registerForTemporalEvent(new Time.Duration(30 * 60));
+        scheduleBackground();
     }
 
     function onStop(state as Dictionary?) as Void {
@@ -33,6 +32,7 @@ class WatchFaceApp extends Application.AppBase {
     }
 
     function onSettingsChanged() as Void {
+        scheduleBackground();
         if (_view != null) {
             (_view as WatchFaceView).onSettingsChanged();
         }
@@ -45,6 +45,14 @@ class WatchFaceApp extends Application.AppBase {
             Storage.setValue("wx_temp", data);
         }
         WatchUi.requestUpdate();
+    }
+
+    // Reads RefreshRate setting (minutes) and re-registers the temporal event.
+    private function scheduleBackground() as Void {
+        var rate = Application.Properties.getValue("RefreshRate") as Number?;
+        if (rate == null || rate < 15) { rate = 30; }
+        Background.deleteTemporalEvent();
+        Background.registerForTemporalEvent(new Time.Duration(rate * 60));
     }
 
 }

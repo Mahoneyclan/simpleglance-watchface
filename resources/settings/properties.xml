@@ -8,6 +8,9 @@
     <!-- Field indices: 0=None 1=Steps 2=Calories 3=Distance 4=Floors 5=ActiveMin -->
     <property id="LeftField"  type="number">1</property>
     <property id="RightField" type="number">4</property>
-    <property id="Use24h"     type="boolean">false</property>
+    <property id="Use24h"       type="boolean">false</property>
+
+    <!-- Weather refresh rate in minutes: 15, 30, 60, 120 -->
+    <property id="RefreshRate" type="number">30</property>
 
 </properties>

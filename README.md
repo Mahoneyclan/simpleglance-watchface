@@ -34,6 +34,7 @@ All customisation is done in **Garmin Connect → Watch Faces → SimpleGlance �
 | Bottom Left Field | Steps, Calories, Distance, Floors, Active Minutes, None | Steps |
 | Bottom Right Field | Same options | Floors |
 | 24-Hour Time | On / Off | Off (12 h) |
+| Weather Refresh Rate | Every 15 min, 30 min, 1 hour, 2 hours | 30 min |
 
 ---
 
@@ -194,6 +195,14 @@ Outputs are written to `store_assets/`.
 ---
 
 ## Changelog
+
+### 1.2.3
+
+- Temperature now fetched from Open-Meteo via background service every 30 minutes
+- Fixes temperature not showing due to Garmin weather sync omitting observation temp
+- Graceful fallback when weather is disconnected: dim cloud placeholder and "--" shown
+- Minimal always-on draw during battery-saving mode (date + time only)
+- Notification count box: 3-sided rounded corners, bell icon stacked above count
 
 ### 1.1.0
 
