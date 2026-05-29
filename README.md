@@ -195,6 +195,10 @@ Outputs are written to `store_assets/`.
 
 ## Changelog
 
+### 1.3.1
+
+- Fix heart rate not displaying on device (switched to `ActivityMonitor.getHeartRateHistory` with full history window)
+
 ### 1.3.0
 
 - Removed weather — dropped background service, HTTP fetching, and Open-Meteo integration
