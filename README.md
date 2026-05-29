@@ -195,6 +195,10 @@ Outputs are written to `store_assets/`.
 
 ## Changelog
 
+### 1.3.2
+
+- Fix heart rate display: match crystal-face pattern — live HR via `Activity.getActivityInfo()` during workouts, `ActivityMonitor.getHeartRateHistory(1, true)` at rest
+
 ### 1.3.1
 
 - Fix heart rate not displaying on device (switched to `ActivityMonitor.getHeartRateHistory` with full history window)
