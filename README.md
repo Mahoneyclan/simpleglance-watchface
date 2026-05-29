@@ -196,6 +196,7 @@ Outputs are written to `store_assets/`.
 ## Changelog
 
 ### 1.1.0
+
 - Added battery arc (10–2 o'clock, colour-coded green/orange/red)
 - Added weather condition icon on left panel (sun, cloud, rain, snow, thunder, fog, wind and more)
 - Added current temperature in °C below weather icon
@@ -204,6 +205,7 @@ Outputs are written to `store_assets/`.
 - Added fenix 6X Pro to supported device list
 
 ### 1.0.0
+
 - Initial release
 
 ---
