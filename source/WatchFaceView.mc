@@ -91,7 +91,7 @@ class WatchFaceView extends WatchUi.WatchFace {
     private function fieldValue(field as Number, actInfo as ActivityMonitor.Info or Null) as String {
         if (field == FIELD_ELEVATION) {
             if (!(Toybox has :SensorHistory) || !(SensorHistory has :getElevationHistory)) { return "--"; }
-            var iter = SensorHistory.getElevationHistory({:period => 60, :order => SensorHistory.ORDER_NEWEST_FIRST});
+            var iter = SensorHistory.getElevationHistory({:order => SensorHistory.ORDER_NEWEST_FIRST});
             var sample = iter.next();
             if (sample == null || sample.data == null) { return "--"; }
             return ((sample.data as Float).toNumber()).toString() + " m";
@@ -239,12 +239,9 @@ class WatchFaceView extends WatchUi.WatchFace {
         drawMiniHeart(dc, cx, y);
 
         var hrStr = "--";
-        if ((Toybox has :SensorHistory) && (SensorHistory has :getHeartRateHistory)) {
-            var iter = SensorHistory.getHeartRateHistory({:period => 60, :order => SensorHistory.ORDER_NEWEST_FIRST});
-            var sample = iter.next();
-            if (sample != null && sample.data != null) {
-                hrStr = (sample.data as Number).toString();
-            }
+        var sample = ActivityMonitor.getHeartRateHistory(null, true).next();
+        if (sample != null && sample.heartRate != ActivityMonitor.INVALID_HR_SAMPLE) {
+            hrStr = sample.heartRate.toString();
         }
         dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, (y + 9 + y + boxH) / 2, Graphics.FONT_SMALL, hrStr,
