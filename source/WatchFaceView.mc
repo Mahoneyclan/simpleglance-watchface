@@ -1,3 +1,4 @@
+import Toybox.Activity;
 import Toybox.ActivityMonitor;
 import Toybox.Application;
 import Toybox.Graphics;
@@ -239,13 +240,16 @@ class WatchFaceView extends WatchUi.WatchFace {
         drawMiniHeart(dc, cx, y);
 
         var hrStr = "--";
-        var hrIter = ActivityMonitor.getHeartRateHistory(null, true);
-        var hrSample = hrIter.next();
-        while (hrSample != null && hrSample.heartRate == ActivityMonitor.INVALID_HR_SAMPLE) {
-            hrSample = hrIter.next();
-        }
-        if (hrSample != null) {
-            hrStr = hrSample.heartRate.toString();
+        // Live HR during an active workout
+        var actInfo = Activity.getActivityInfo();
+        if (actInfo != null && actInfo.currentHeartRate != null) {
+            hrStr = actInfo.currentHeartRate.toString();
+        } else if (ActivityMonitor has :getHeartRateHistory) {
+            // Last 1-min average at rest (the normal watch face case)
+            var sample = ActivityMonitor.getHeartRateHistory(1, true).next();
+            if (sample != null && sample.heartRate != ActivityMonitor.INVALID_HR_SAMPLE) {
+                hrStr = sample.heartRate.toString();
+            }
         }
         dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, (y + 9 + y + boxH) / 2, Graphics.FONT_SMALL, hrStr,
