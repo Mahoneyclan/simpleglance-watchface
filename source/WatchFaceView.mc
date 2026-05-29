@@ -50,6 +50,10 @@ class WatchFaceView extends WatchUi.WatchFace {
 
     function onShow() as Void {
         loadSettings();
+        // Fetch temperature immediately if nothing is stored yet
+        if (Storage.getValue("wx_temp") == null) {
+            (Application.getApp() as WatchFaceApp).fetchTemperatureNow();
+        }
     }
 
     // Called by WatchFaceApp when the user changes settings in Garmin Connect.
