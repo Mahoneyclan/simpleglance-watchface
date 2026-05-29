@@ -218,10 +218,15 @@ class WatchFaceView extends WatchUi.WatchFace {
         dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
         dc.drawLine(leftX - 10, y + 2, leftX + 10, y + 2);
 
-        // Temperature — always drawn in _fgColor; shows "--" when unavailable
+        // Temperature — live observation temp, falling back to today's high,
+        // then "--". Garmin sometimes syncs condition without observation temp.
         var tempStr = "--";
-        if (wxCond != null && wxCond.temperature != null) {
-            tempStr = (wxCond.temperature as Number).format("%d") + "°";
+        if (wxCond != null) {
+            if (wxCond.temperature != null) {
+                tempStr = (wxCond.temperature as Number).format("%d") + "°";
+            } else if (wxCond.highTemperature != null) {
+                tempStr = (wxCond.highTemperature as Number).format("%d") + "°";
+            }
         }
         dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(leftX, y + 26, Graphics.FONT_SMALL, tempStr,
