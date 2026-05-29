@@ -1,5 +1,6 @@
 import Toybox.ActivityMonitor;
 import Toybox.Application;
+import Toybox.Application.Storage;
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.System;
@@ -214,14 +215,23 @@ class WatchFaceView extends WatchUi.WatchFace {
             drawWCloud(dc, leftX, y - 18);
         }
 
+        // Save observation coords for the background Open-Meteo fetch
+        if (wxCond != null && wxCond.observationLocationPosition != null) {
+            Storage.setValue("wx_coords",
+                wxCond.observationLocationPosition.toDegrees());
+        }
+
         // Divider
         dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
         dc.drawLine(leftX - 10, y + 2, leftX + 10, y + 2);
 
-        // Temperature — live observation temp, falling back to today's high,
-        // then "--". Garmin sometimes syncs condition without observation temp.
+        // Temperature — prefer Open-Meteo value (fetched by BackgroundService),
+        // fall back to Garmin weather fields if not yet available.
         var tempStr = "--";
-        if (wxCond != null) {
+        var storedTemp = Storage.getValue("wx_temp");
+        if (storedTemp != null) {
+            tempStr = (storedTemp as Number).format("%d") + "°";
+        } else if (wxCond != null) {
             if (wxCond.temperature != null) {
                 tempStr = (wxCond.temperature as Number).format("%d") + "°";
             } else if (wxCond.highTemperature != null) {
