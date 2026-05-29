@@ -239,9 +239,13 @@ class WatchFaceView extends WatchUi.WatchFace {
         drawMiniHeart(dc, cx, y);
 
         var hrStr = "--";
-        var sample = ActivityMonitor.getHeartRateHistory(null, true).next();
-        if (sample != null && sample.heartRate != ActivityMonitor.INVALID_HR_SAMPLE) {
-            hrStr = sample.heartRate.toString();
+        var hrIter = ActivityMonitor.getHeartRateHistory(null, true);
+        var hrSample = hrIter.next();
+        while (hrSample != null && hrSample.heartRate == ActivityMonitor.INVALID_HR_SAMPLE) {
+            hrSample = hrIter.next();
+        }
+        if (hrSample != null) {
+            hrStr = hrSample.heartRate.toString();
         }
         dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, (y + 9 + y + boxH) / 2, Graphics.FONT_SMALL, hrStr,
