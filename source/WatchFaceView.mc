@@ -7,6 +7,7 @@ import Toybox.System;
 import Toybox.Time;
 import Toybox.Time.Gregorian;
 import Toybox.WatchUi;
+import Toybox.Position;
 import Toybox.Weather;
 
 // ── Field identifiers — match listEntry values in settings.xml ────────────────
@@ -215,8 +216,13 @@ class WatchFaceView extends WatchUi.WatchFace {
             drawWCloud(dc, leftX, y - 18);
         }
 
-        // Save observation coords for the background Open-Meteo fetch
-        if (wxCond != null && wxCond.observationLocationPosition != null) {
+        // Save coords for the background Open-Meteo fetch.
+        // Position.getInfo() reads the watch's cached GPS (no active fix needed).
+        // Fall back to the Garmin weather observation position if GPS unavailable.
+        var posInfo = Position.getInfo();
+        if (posInfo != null && posInfo.position != null) {
+            Storage.setValue("wx_coords", posInfo.position.toDegrees());
+        } else if (wxCond != null && wxCond.observationLocationPosition != null) {
             Storage.setValue("wx_coords",
                 wxCond.observationLocationPosition.toDegrees());
         }
