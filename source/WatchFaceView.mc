@@ -91,7 +91,7 @@ class WatchFaceView extends WatchUi.WatchFace {
     private function fieldValue(field as Number, actInfo as ActivityMonitor.Info or Null) as String {
         if (field == FIELD_ELEVATION) {
             if (!(Toybox has :SensorHistory) || !(SensorHistory has :getElevationHistory)) { return "--"; }
-            var iter = SensorHistory.getElevationHistory({:period => 1, :order => SensorHistory.ORDER_NEWEST_FIRST});
+            var iter = SensorHistory.getElevationHistory({:period => 60, :order => SensorHistory.ORDER_NEWEST_FIRST});
             var sample = iter.next();
             if (sample == null || sample.data == null) { return "--"; }
             return ((sample.data as Float).toNumber()).toString() + " m";
@@ -240,7 +240,7 @@ class WatchFaceView extends WatchUi.WatchFace {
 
         var hrStr = "--";
         if ((Toybox has :SensorHistory) && (SensorHistory has :getHeartRateHistory)) {
-            var iter = SensorHistory.getHeartRateHistory({:period => 1, :order => SensorHistory.ORDER_NEWEST_FIRST});
+            var iter = SensorHistory.getHeartRateHistory({:period => 60, :order => SensorHistory.ORDER_NEWEST_FIRST});
             var sample = iter.next();
             if (sample != null && sample.data != null) {
                 hrStr = (sample.data as Number).toString();
