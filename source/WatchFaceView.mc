@@ -17,6 +17,10 @@ const FIELD_DISTANCE   = 3 as Number;
 const FIELD_FLOORS     = 4 as Number;
 const FIELD_ACTIVE_MIN = 5 as Number;
 const FIELD_ELEVATION  = 7 as Number;
+// ── Arc label modes ───────────────────────────────────────────────────────────
+const ARCLABEL_NONE = 0 as Number;
+const ARCLABEL_PCT  = 1 as Number;
+const ARCLABEL_DAYS = 2 as Number;
 // ─────────────────────────────────────────────────────────────────────────────
 
 class WatchFaceView extends WatchUi.WatchFace {
@@ -34,7 +38,7 @@ class WatchFaceView extends WatchUi.WatchFace {
     private var _leftField  as Number  = FIELD_STEPS;
     private var _rightField as Number  = FIELD_FLOORS;
     private var _use24h     as Boolean = false;
-    private var _sleeping   as Boolean = false;
+    private var _arcLabel   as Number  = ARCLABEL_NONE;
 
     function initialize() {
         WatchFace.initialize();
@@ -58,15 +62,10 @@ class WatchFaceView extends WatchUi.WatchFace {
     function onUpdate(dc as Dc) as Void {
         dc.setColor(_bgColor, _bgColor);
         dc.clear();
-        if (_sleeping) {
-            drawDate(dc);
-            drawTime(dc);
-        } else {
-            drawBatteryArc(dc);
-            drawDate(dc);
-            drawTime(dc);
-            drawBottomBar(dc);
-        }
+        drawBatteryArc(dc);
+        drawDate(dc);
+        drawTime(dc);
+        drawBottomBar(dc);
     }
 
     private function loadSettings() as Void {
@@ -76,6 +75,7 @@ class WatchFaceView extends WatchUi.WatchFace {
         _leftField  = Application.Properties.getValue("LeftField")  as Number;
         _rightField = Application.Properties.getValue("RightField") as Number;
         _use24h     = Application.Properties.getValue("Use24h")     as Boolean;
+        _arcLabel   = Application.Properties.getValue("ArcLabel")   as Number;
         var dark  = isDark(_bgColor);
         _fgColor  = dark ? Graphics.COLOR_WHITE   : Graphics.COLOR_BLACK;
         _dimColor = dark ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
@@ -142,6 +142,7 @@ class WatchFaceView extends WatchUi.WatchFace {
     }
 
     // Arc from 10 o'clock (150°) to 2 o'clock (30°) through the top.
+    // Fill is anchored at 10 o'clock and drains rightward toward 2 o'clock as battery depletes.
     private function drawBatteryArc(dc as Dc) as Void {
         var stats   = System.getSystemStats();
         var battPct = stats.battery.toNumber();
@@ -154,14 +155,32 @@ class WatchFaceView extends WatchUi.WatchFace {
         dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, 30, 150);
 
         if (battPct > 0) {
-            var battCol = battPct < 10  ? Graphics.COLOR_RED
-                        : battPct <= 50 ? Graphics.COLOR_ORANGE
-                        :                 Graphics.COLOR_GREEN;
+            var battCol = battPct > 50  ? Graphics.COLOR_GREEN
+                       : battPct >= 25 ? Graphics.COLOR_ORANGE
+                       :                 Graphics.COLOR_RED;
             dc.setColor(battCol, Graphics.COLOR_TRANSPARENT);
+            // endAngle moves from 30° (empty) toward 150° (full) — left side dims first
             var endAngle = 30 + battPct * 120 / 100;
             dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, 30, endAngle);
         }
         dc.setPenWidth(1);
+
+        if (_arcLabel != ARCLABEL_NONE) {
+            var label = "";
+            if (_arcLabel == ARCLABEL_PCT) {
+                label = battPct.toString() + "%";
+            } else {
+                var bdays = stats.batteryInDays;
+                if (bdays != null) {
+                    label = (bdays as Float).toNumber().toString() + "d";
+                } else {
+                    label = (battPct * 14 / 100).toString() + "d";
+                }
+            }
+            dc.setColor(_fgColor, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, cy - r + 15, Graphics.FONT_XTINY, label,
+                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        }
     }
 
     // Large two-tone time, with HR panel left and notifications panel right.
@@ -313,16 +332,6 @@ class WatchFaceView extends WatchUi.WatchFace {
     }
 
     function onHide() as Void {
-    }
-
-    function onExitSleep() as Void {
-        _sleeping = false;
-        WatchUi.requestUpdate();
-    }
-
-    function onEnterSleep() as Void {
-        _sleeping = true;
-        WatchUi.requestUpdate();
     }
 
 }

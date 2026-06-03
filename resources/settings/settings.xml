@@ -70,4 +70,12 @@
         <settingConfig type="boolean" />
     </setting>
 
+    <setting propertyKey="@Properties.ArcLabel" title="@Strings.SettingArcLabel">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.ArcLabelNone</listEntry>
+            <listEntry value="1">@Strings.ArcLabelPct</listEntry>
+            <listEntry value="2">@Strings.ArcLabelDays</listEntry>
+        </settingConfig>
+    </setting>
+
 </settings>

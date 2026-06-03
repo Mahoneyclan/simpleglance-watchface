@@ -9,6 +9,7 @@
     <string id="SettingLeftField">Bottom Left Field</string>
     <string id="SettingRightField">Bottom Right Field</string>
     <string id="SettingUse24h">24-Hour Time</string>
+    <string id="SettingArcLabel">Arc Battery Label</string>
 
     <!-- Color options -->
     <string id="ColorBlack">Black</string>
@@ -20,6 +21,11 @@
     <string id="ColorOrange">Orange</string>
     <string id="ColorPurple">Purple</string>
     <string id="ColorPink">Pink</string>
+
+    <!-- Arc label options -->
+    <string id="ArcLabelNone">None</string>
+    <string id="ArcLabelPct">Battery %</string>
+    <string id="ArcLabelDays">Days Remaining</string>
 
     <!-- Field options -->
     <string id="FieldNone">None</string>

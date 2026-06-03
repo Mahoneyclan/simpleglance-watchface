@@ -12,7 +12,8 @@ A clean, minimal digital watch face for the Garmin fenix 6 / fenix 6 Pro with fu
 - **Date** — `DAY DD MON` format (e.g. `WED 20 MAY`)
 - **Colon separator** — two filled dot colon between hours and minutes
 - **12 / 24-hour mode** — toggle in Garmin Connect settings
-- **Battery arc** — curved arc from 10 o'clock to 2 o'clock above the date; green (>50 %), orange (10–50 %), red (<10 %)
+- **Battery arc** — curved arc from 10 o'clock to 2 o'clock above the date; green (>50 %), orange (25–50 %), red (<25 %); drains left-to-right
+- **Arc battery label** — optional ultra-small label at 12 o'clock showing battery % or days remaining (user choice)
 - **HR panel** — 3-sided rounded box with heart icon + current heart rate (bpm), overlaid on the left side of the hour digits
 - **Notification box** — 3-sided rounded box with bell icon + count, overlaid on the right side of the minute digits
 - **Bottom data row** — two user-selected fields from: Steps, Calories, Distance, Floors, Active Minutes, Elevation, or None
@@ -34,6 +35,7 @@ All customisation is done in **Garmin Connect → Watch Faces → SimpleGlance �
 | Bottom Left Field | Steps, Calories, Distance, Floors, Active Minutes, Elevation, None | Steps |
 | Bottom Right Field | Same options | Floors |
 | 24-Hour Time | On / Off | Off (12 h) |
+| Arc Battery Label | None, Battery %, Days Remaining | None |
 
 ---
 
@@ -194,6 +196,16 @@ Outputs are written to `store_assets/`.
 ---
 
 ## Changelog
+
+### 1.4.1
+
+- Remove battery-saver sleep mode — watch face now renders the full layout (battery arc, date, time, HR panel, notifications, bottom bar) at all times
+
+### 1.4.0
+
+- Fix battery arc fill: arc now drains left-to-right (10 o'clock side dims first)
+- Update battery arc colour thresholds: green >50 %, orange 25–50 %, red <25 %
+- Add **Arc Battery Label** setting: display battery % or days remaining at 12 o'clock in ultra-small font, or none
 
 ### 1.3.2
 
