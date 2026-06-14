@@ -78,7 +78,7 @@ class WatchFaceView extends WatchUi.WatchFace {
         _arcLabel   = Application.Properties.getValue("ArcLabel")   as Number;
         var dark  = isDark(_bgColor);
         _fgColor  = dark ? Graphics.COLOR_WHITE   : Graphics.COLOR_BLACK;
-        _dimColor = dark ? Graphics.COLOR_DK_GRAY : Graphics.COLOR_LT_GRAY;
+        _dimColor = dark ? Graphics.COLOR_LT_GRAY : Graphics.COLOR_DK_GRAY;
     }
 
     private function isDark(color as Number) as Boolean {
@@ -142,15 +142,16 @@ class WatchFaceView extends WatchUi.WatchFace {
     }
 
     // Arc from 10 o'clock (150°) to 2 o'clock (30°) through the top.
-    // Fill is anchored at 10 o'clock and drains rightward toward 2 o'clock as battery depletes.
+    // Fill is anchored at 10 o'clock (150°); startAngle moves toward 30° as battery depletes.
     private function drawBatteryArc(dc as Dc) as Void {
         var stats   = System.getSystemStats();
-        var battPct = stats.battery.toNumber();
+        if (stats == null) { return; }
+        var battPct = (stats.battery != null) ? stats.battery.toNumber() : 0;
         var cx      = _centerX;
         var cy      = _centerX;
         var r       = (_screenWidth / 2) - 7;
 
-        dc.setPenWidth(8);
+        dc.setPenWidth(9);
         dc.setColor(_dimColor, Graphics.COLOR_TRANSPARENT);
         dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, 30, 150);
 
@@ -159,9 +160,9 @@ class WatchFaceView extends WatchUi.WatchFace {
                        : battPct >= 25 ? Graphics.COLOR_ORANGE
                        :                 Graphics.COLOR_RED;
             dc.setColor(battCol, Graphics.COLOR_TRANSPARENT);
-            // endAngle moves from 30° (empty) toward 150° (full) — left side dims first
-            var endAngle = 30 + battPct * 120 / 100;
-            dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, 30, endAngle);
+            // Anchor at 150° (10 o'clock); gap grows from 30° (2 o'clock) inward as battery depletes
+            var startAngle = 30 + (100 - battPct) * 120 / 100;
+            dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, startAngle, 150);
         }
         dc.setPenWidth(1);
 

@@ -35,7 +35,7 @@ All customisation is done in **Garmin Connect → Watch Faces → SimpleGlance �
 | Bottom Left Field | Steps, Calories, Distance, Floors, Active Minutes, Elevation, None | Steps |
 | Bottom Right Field | Same options | Floors |
 | 24-Hour Time | On / Off | Off (12 h) |
-| Arc Battery Label | None, Battery %, Days Remaining | None |
+| Arc Battery Label | None, Battery %, Days Remaining | Battery % |
 
 ---
 
@@ -196,6 +196,11 @@ Outputs are written to `store_assets/`.
 ---
 
 ## Changelog
+
+### 1.4.2
+
+- Fix battery arc showing 100% on dark themes: `_dimColor` contrast logic was inverted — empty arc segment was dark gray on black background (invisible); corrected to light gray on dark / dark gray on light
+- Default **Arc Battery Label** changed from None to Battery % so the numeric value is always visible out-of-the-box
 
 ### 1.4.1
 

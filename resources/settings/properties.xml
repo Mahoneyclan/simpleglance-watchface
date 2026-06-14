@@ -12,6 +12,6 @@
     <property id="Use24h" type="boolean">false</property>
 
     <!-- Arc label: 0=None 1=Battery% 2=BatteryDays -->
-    <property id="ArcLabel" type="number">0</property>
+    <property id="ArcLabel" type="number">1</property>
 
 </properties>
